@@ -1,0 +1,360 @@
+// Practice engine shared by modules, exams, the missed queue and memorize-quiz.
+import { HUB } from '../hub.js?v=183898d02e';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=183898d02e';
+import * as store from '../lib/store.js?v=183898d02e';
+
+export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
+export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
+const SUP = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-', '⁺': '+' };
+
+/** Parse "1.5e-3", "1.5×10^-3", "1.5x10-3", "+2", "10^-3", "1.5 x 10⁻³". Returns number or null. */
+export function parseNum(input) {
+  let s = String(input ?? '').trim().replace(/[−–—]/g, '-').replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]/g, (c) => (c === '⁻' ? '^-' : c === '⁺' ? '^+' : '^' + SUP[c]));
+  s = s.replace(/\^(\^)/g, '^').replace(/\^-\^(\d)/g, '^-$1').replace(/\^\+\^(\d)/g, '^+$1').replace(/\^(\d)\^(\d)/g, '^$1$2').replace(/\s+/g, '').replace(/,(?=\d{3}\b)/g, '');
+  let m = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)$/.exec(s);
+  if (m) return parseFloat(m[1]);
+  m = /^([+-]?(?:\d+\.?\d*|\.\d+))?(?:[x×*·]|\*\*)?10\^?\(?([+-]?\d+)\)?$/i.exec(s);
+  if (m && (m[1] !== undefined || /^[+-]?10/.test(s))) {
+    const mant = m[1] === undefined ? 1 : parseFloat(m[1]);
+    return mant * Math.pow(10, parseInt(m[2], 10));
+  }
+  return null;
+}
+
+export function grade(q, r) {
+  switch (q.type) {
+    case 'mcq': return r === q.answer;
+    case 'tf': return r === q.answer;
+    case 'multi': { const a = [...(r || [])].sort(), b = [...q.answer].sort(); return a.length === b.length && a.every((x, i) => x === b[i]); }
+    case 'numeric': { const v = parseNum(r); return v != null && Math.abs(v - q.answer) <= (q.tolerance ?? 0) + 1e-12; }
+    case 'short': return r === 'got' ? true : r === 'missed' ? false : null;
+  }
+  return null;
+}
+function hasResp(q, r) {
+  if (q.type === 'mcq') return r != null;
+  if (q.type === 'tf') return typeof r === 'boolean';
+  if (q.type === 'multi') return Array.isArray(r) && r.length > 0;
+  if (q.type === 'numeric') return parseNum(r) != null;
+  return false;
+}
+const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const fmtAns = (q) => `${q.answer}${q.unit ? ' ' + q.unit : ''}${q.tolerance ? ` (± ${q.tolerance})` : ''}`;
+
+/**
+ * opts: {title, items:[{q, section?, label?}], timed?:minutes, backHref, backLabel, filters?:true,
+ *        noRecord?:bool, again?:()=>items, onFinish?:fn, examId?}
+ * Returns a cleanup function.
+ */
+export function mountEngine(root, opts) {
+  const items = opts.items;
+  const timed = !!opts.timed;
+  const filtersOn = opts.filters !== false && !timed;
+  const S = { filter: 'all', order: opts.defaultOrder || 'orig', shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
+  const sess = new Map();
+  const st = (q) => { if (!sess.has(q.id)) sess.set(q.id, { resp: undefined, revealed: false, done: false, ok: null }); return sess.get(q.id); };
+  let timerId = null, endsAt = 0, timerEl = null;
+  const record = (q, ok) => { if (!opts.noRecord && ok != null) store.recordAnswer(q.id, ok); };
+
+  function rebuild() {
+    let l = items.filter((it) => {
+      const a = store.getQ(it.q.id);
+      if (S.filter === 'unanswered') return !a;
+      if (S.filter === 'missed') return a && !a.ok;
+      if (S.filter === 'emphasis') return !!it.q.emphasis;
+      if (S.filter === 'gsi') return !!it.q.gsi;
+      return true;
+    });
+    if (S.shuffle) l = shuffle([...l]);
+    else if (S.order === 'gsi') l = l.map((it, i) => [it, i]).sort((a, b) => (b[0].q.gsi || 0) - (a[0].q.gsi || 0) || a[1] - b[1]).map((x) => x[0]);
+    S.list = l; S.idx = 0; S.phase = 'run';
+  }
+  rebuild();
+
+  if (timed) {
+    endsAt = Date.now() + opts.timed * 60000;
+    timerId = setInterval(tick, 1000);
+  }
+  function tick() {
+    const left = Math.max(0, endsAt - Date.now());
+    if (timerEl && timerEl.isConnected) {
+      timerEl.textContent = fmtTime(Math.ceil(left / 1000)).padStart(5, '0');
+      timerEl.classList.toggle('warn', left < 5 * 60000);
+    }
+    if (left <= 0 && S.phase === 'run') submitTimed();
+  }
+
+  // ---- actions ----
+  const cur = () => S.list[S.idx];
+  function showFeedback(s) { return s.done || (timed && S.phase === 'review'); }
+  function pick(i) {
+    const it = cur(); if (!it) return; const q = it.q, s = st(q);
+    if (s.done || (timed && S.phase === 'review')) return;
+    if (q.type === 'mcq') s.resp = i;
+    else if (q.type === 'tf') s.resp = i === 0;
+    else if (q.type === 'multi') { const set = new Set(s.resp || []); set.has(i) ? set.delete(i) : set.add(i); s.resp = [...set]; }
+    draw(); root.querySelector(`.opt[data-i="${i}"]`)?.focus();
+  }
+  function submit() {
+    const it = cur(); if (!it || timed) return; const q = it.q, s = st(q);
+    if (s.done) return;
+    if (q.type === 'short') { if (!s.revealed) { s.revealed = true; draw(); } return; }
+    if (!hasResp(q, s.resp)) { s.hint = q.type === 'numeric' ? 'Enter a number, like 8, 1.5e-3, or 1.5×10^-3.' : 'Choose an answer first.'; draw(); return; }
+    s.hint = null; s.done = true; s.ok = grade(q, s.resp); record(q, s.ok); draw();
+  }
+  function mark(ok) {
+    const it = cur(); if (!it) return; const q = it.q, s = st(q);
+    s.resp = ok ? 'got' : 'missed'; s.ok = ok; s.done = true; s.revealed = true;
+    record(q, ok);
+    if (timed && S.phase === 'review') saveExam();
+    draw();
+  }
+  function go(d) { const n = S.idx + d; if (n >= 0 && n < S.list.length) { S.idx = n; draw(); window.scrollTo({ top: 0 }); } }
+  function next() {
+    if (S.idx < S.list.length - 1) go(1);
+    else if (timed) { if (S.phase === 'run') { S.confirming = true; draw(); } else { S.idx = 0; draw(); } }
+    else { S.phase = 'summary'; draw(); window.scrollTo({ top: 0 }); }
+  }
+  function submitTimed() {
+    clearInterval(timerId); timerId = null;
+    for (const it of items) {
+      const s = st(it.q);
+      if (it.q.type === 'short') { s.revealed = true; s.done = false; s.ok = null; }
+      else {
+        s.ok = grade(it.q, s.resp); s.done = true;
+        if (hasResp(it.q, s.resp)) record(it.q, s.ok); // skipped questions count as wrong in the score but don't flood the Missed queue
+      }
+    }
+    S.phase = 'review'; S.confirming = false; S.idx = 0; saveExam(); draw(); window.scrollTo({ top: 0 });
+  }
+  function score() {
+    let right = 0, pending = 0;
+    const secs = new Map();
+    for (const it of items) {
+      const s = st(it.q); const k = it.section || 'All questions';
+      if (!secs.has(k)) secs.set(k, { right: 0, total: 0, pending: 0 });
+      const e = secs.get(k); e.total++;
+      if (s.ok === true) { right++; e.right++; } else if (s.ok === null) { pending++; e.pending++; }
+    }
+    return { right, pending, total: items.length, secs };
+  }
+  function saveExam() { if (opts.examId) { const sc = score(); store.setExamResult(opts.examId, { score: sc.right, total: sc.total, timed: true }); } }
+
+  // ---- keyboard ----
+  function onKey(e) {
+    if (e.metaKey || e.ctrlKey || e.altKey || !root.isConnected) return;
+    if (document.querySelector('.lightbox')) return;
+    const t = e.target, tag = t.tagName;
+    const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    const it = cur(); if (!it || S.phase === 'summary') return;
+    const q = it.q, s = st(q);
+    if (e.key === 'Enter') {
+      if (tag === 'TEXTAREA') return;
+      if ((tag === 'BUTTON' && !t.classList.contains('opt')) || tag === 'A' || tag === 'SELECT' || tag === 'SUMMARY') return;
+      e.preventDefault();
+      if (timed && S.phase === 'run') next();
+      else if (showFeedback(s)) next();
+      else submit();
+      return;
+    }
+    if (typing) return;
+    if (/^[1-9]$/.test(e.key)) {
+      const n = +e.key - 1;
+      if (q.type === 'short') { if (s.revealed && !s.done && n < 2) mark(n === 0); return; }
+      const count = q.type === 'tf' ? 2 : (q.choices || []).length;
+      if (n < count) { e.preventDefault(); pick(n); }
+    } else if (e.key === 'ArrowRight') go(1);
+    else if (e.key === 'ArrowLeft') go(-1);
+  }
+  document.addEventListener('keydown', onKey);
+
+  // ---- rendering ----
+  function toolbar() {
+    if (!filtersOn) return null;
+    const counts = { all: items.length, unanswered: items.filter((i) => !store.getQ(i.q.id)).length, missed: items.filter((i) => { const a = store.getQ(i.q.id); return a && !a.ok; }).length, emphasis: items.filter((i) => i.q.emphasis).length, gsi: items.filter((i) => i.q.gsi).length };
+    const sel = h('select', { id: 'flt', 'aria-label': 'Filter questions', onchange: (e) => { S.filter = e.target.value; rebuild(); draw(); } },
+      ...[['all', 'All'], ['unanswered', 'Unanswered'], ['missed', 'Missed'], ['emphasis', 'Prof emphasis'], ['gsi', '🎯 ' + HUB.focus.short + ' focus only']].map(([v, l]) => h('option', { value: v, selected: v === S.filter }, `${l} (${counts[v]})`)));
+    const ord = h('select', { id: 'ord', 'aria-label': 'Question order', disabled: S.shuffle, onchange: (e) => { S.order = e.target.value; rebuild(); draw(); } },
+      ...[['orig', 'Original order'], ['gsi', HUB.focus.short + ' first']].map(([v, l]) => h('option', { value: v, selected: v === S.order }, l)));
+    return h('div', { class: 'toolbar' }, h('label', { class: 'field-inline', for: 'flt' }, 'Show'), sel,
+      h('label', { class: 'field-inline', for: 'ord' }, 'Order'), ord,
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: S.shuffle, onchange: (e) => { S.shuffle = e.target.checked; rebuild(); draw(); } }), ' Shuffle'));
+  }
+
+  function navigator() {
+    return h('nav', { class: 'qnav', 'aria-label': 'Question navigator' }, S.list.map((it, i) => {
+      const s = st(it.q);
+      let c = 'qn';
+      if (i === S.idx) c += ' current';
+      if (showFeedback(s)) c += s.ok === null ? ' answered' : s.ok ? ' ok' : ' bad';
+      else if (timed && hasResp(it.q, s.resp)) c += ' answered';
+      return h('button', { class: c, type: 'button', 'aria-label': `Question ${i + 1}`, 'aria-current': i === S.idx ? 'true' : null, onclick: () => { S.idx = i; draw(); } }, String(i + 1));
+    }));
+  }
+
+  function optionsEl(q, s, locked, fb) {
+    const labels = q.type === 'tf' ? ['True', 'False'] : q.choices;
+    const val = (i) => (q.type === 'tf' ? i === 0 : i);
+    const sel = (i) => (q.type === 'multi' ? (s.resp || []).includes(i) : s.resp === val(i));
+    const isAns = (i) => (q.type === 'multi' ? q.answer.includes(i) : q.answer === val(i));
+    return h('div', { class: 'opts', role: q.type === 'multi' ? 'group' : 'radiogroup', 'aria-label': 'Answer choices' }, labels.map((t, i) => {
+      let c = 'opt';
+      if (sel(i)) c += ' selected';
+      if (fb) { if (isAns(i)) c += sel(i) || q.type !== 'multi' ? ' correct' : ' correct missed'; else if (sel(i)) c += ' wrong'; }
+      return h('button', { class: c, type: 'button', 'data-i': i, role: q.type === 'multi' ? 'checkbox' : 'radio', 'aria-checked': sel(i) ? 'true' : 'false', disabled: locked, onclick: () => pick(i) },
+        h('span', { class: 'opt-key', 'aria-hidden': 'true' }, q.type === 'multi' ? (sel(i) ? '☑' : '☐') : String(i + 1)),
+        h('span', { class: 'opt-text', html: mdInline(t) }),
+        fb && isAns(i) && h('span', { class: 'opt-flag', 'aria-label': 'correct answer' }, '✓'),
+        fb && !isAns(i) && sel(i) && h('span', { class: 'opt-flag', 'aria-label': 'your answer, incorrect' }, '✗'));
+    }));
+  }
+
+  function card(it) {
+    const q = it.q, s = st(q);
+    const fb = showFeedback(s);
+    const locked = fb;
+    const body = [];
+    if (it.section && opts.showSections !== false) body.push(h('div', { class: 'q-section' }, it.section));
+    body.push(h('div', { class: 'q-meta' },
+      h('span', { class: 'q-type' }, { mcq: 'Multiple choice', tf: 'True / False', multi: 'Select all that apply', numeric: 'Numeric', short: 'Short answer' }[q.type]),
+      q.gsi && h('span', { class: 'badge gsi lv' + q.gsi, title: HUB.focus.label + ': ' + GSI_LEVEL[q.gsi] }, '🎯 ' + HUB.focus.short),
+      it.label && h('span', { class: 'q-label' }, it.href ? h('a', { href: it.href }, it.label) : it.label)));
+    body.push(h('div', { class: 'prompt', html: md(q.prompt) }));
+    if (q.figure) body.push(figureEl(q.figure));
+
+    if (q.type === 'mcq' || q.type === 'tf' || q.type === 'multi') body.push(optionsEl(q, s, locked, fb));
+    else if (q.type === 'numeric') {
+      const input = h('input', { id: 'num', class: 'num-input', type: 'text', inputmode: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: 'e.g. 1.5e-3', 'aria-label': 'Your numeric answer', disabled: locked, value: s.resp ?? '' });
+      input.addEventListener('input', () => { s.resp = input.value; if (s.hint) { s.hint = null; card_hint.textContent = ''; } });
+      const card_hint = h('div', { class: 'hint', role: 'status' }, s.hint || '');
+      body.push(h('div', { class: 'num-row' }, input, q.unit && h('span', { class: 'unit' }, q.unit)), card_hint);
+      if (opts.focusNum !== false && !locked) setTimeout(() => { if (document.activeElement === document.body) input.focus(); }, 0);
+    } else if (q.type === 'short') {
+      const ta = h('textarea', { class: 'short-input', rows: 3, placeholder: 'Write your answer here (optional, for yourself)…', 'aria-label': 'Your answer', disabled: s.revealed });
+      ta.value = s.draft || '';
+      ta.addEventListener('input', () => { s.draft = ta.value; });
+      body.push(ta);
+      if (s.revealed) {
+        body.push(h('div', { class: 'model-answer' }, h('div', { class: 'ma-title' }, 'Model answer'), h('div', { class: 'md', html: md(q.answer) })));
+        if (!s.done) body.push(h('div', { class: 'selfmark' }, h('span', null, 'How did you do?'),
+          h('button', { class: 'btn good', type: 'button', onclick: () => mark(true) }, '1 · Got it'),
+          h('button', { class: 'btn bad', type: 'button', onclick: () => mark(false) }, '2 · Missed it')));
+      }
+    }
+
+    if (fb && (q.type !== 'short' || s.done)) {
+      const ok = s.ok;
+      const fbEl = h('div', { class: 'feedback ' + (ok ? 'fb-ok' : 'fb-bad'), role: 'status' },
+        h('div', { class: 'fb-head' }, ok ? (q.type === 'short' ? '✓ Got it' : '✓ Correct') : (q.type === 'short' ? '✗ Missed it' : '✗ Incorrect'),
+          q.type === 'numeric' && !ok && h('span', { class: 'fb-ans' }, ' · Answer: ', fmtAns(q))),
+        q.type === 'numeric' && ok && h('div', { class: 'fb-sub' }, 'Answer: ' + fmtAns(q)),
+        q.explanation && h('div', { class: 'md', html: md(q.explanation) }),
+        h('div', { class: 'badges' },
+          q.source && h('span', { class: 'badge src' }, 'Source: ' + q.source),
+          q.emphasis && h('span', { class: 'badge emph' }, '★ Professor emphasis'),
+          q.difficulty && h('span', { class: 'badge d' + q.difficulty }, DIFF[q.difficulty]),
+          (q.tags || []).filter((t) => t !== 'sample').map((t) => h('span', { class: 'badge tag' }, t))));
+      body.push(fbEl);
+    }
+    if (timed && S.phase === 'review' && q.type === 'short' && !s.done) { /* self-mark shown above */ }
+
+    // footer controls
+    const last = S.idx === S.list.length - 1;
+    const foot = h('div', { class: 'q-foot' },
+      h('button', { class: 'btn ghost', type: 'button', disabled: S.idx === 0, onclick: () => go(-1) }, '← Prev'));
+    if (timed && S.phase === 'run') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? 'Review & submit' : 'Next →'));
+    else if (!timed && !s.done && q.type !== 'short') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Check answer'));
+    else if (!timed && !s.done && q.type === 'short' && !s.revealed) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Reveal answer'));
+    else if (s.done || (timed && S.phase === 'review')) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? (timed ? 'Back to start' : 'Finish') : 'Next →'));
+    return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot, !timed && h('div', { class: 'kbd-hint' }, 'Keys: 1–5 choose · Enter check / next · ← → move'));
+  }
+
+  function summary() {
+    const rows = S.list.map((it, i) => ({ it, i, s: st(it.q) }));
+    const answered = rows.filter((r) => r.s.done), right = answered.filter((r) => r.s.ok).length;
+    const pct = answered.length ? Math.round((100 * right) / answered.length) : 0;
+    const missed = rows.filter((r) => r.s.done && !r.s.ok);
+    const skipped = rows.filter((r) => !r.s.done);
+    return h('section', { class: 'summary card-box' },
+      h('h2', null, 'Set complete'),
+      h('div', { class: 'big-score' }, `${right} / ${answered.length}`, h('span', null, ` correct · ${pct}%`)),
+      skipped.length > 0 && h('p', { class: 'muted' }, `${skipped.length} question${skipped.length > 1 ? 's' : ''} not answered.`),
+      h('ul', { class: 'sum-list' }, rows.map(({ it, i, s }) => h('li', { class: s.done ? (s.ok ? 'ok' : 'bad') : 'skip' },
+        h('button', { class: 'linkish', type: 'button', onclick: () => { S.phase = 'run'; S.idx = i; draw(); } },
+          h('span', { class: 'sum-n' }, String(i + 1)), h('span', { class: 'sum-mark', 'aria-hidden': 'true' }, s.done ? (s.ok ? '✓' : '✗') : '–'),
+          h('span', { class: 'sum-text' }, plain(it.q.prompt).slice(0, 110)))))),
+      h('div', { class: 'row-actions' },
+        missed.length > 0 && h('button', { class: 'btn primary', type: 'button', onclick: () => { const ids = new Set(missed.map((r) => r.it.q.id)); S.list = S.list.filter((x) => ids.has(x.q.id)); for (const x of S.list) { const s = st(x.q); s.resp = undefined; s.done = false; s.ok = null; s.revealed = false; } S.idx = 0; S.phase = 'run'; draw(); } }, `Retry ${missed.length} missed`),
+        opts.again && h('button', { class: 'btn primary', type: 'button', onclick: () => { cleanup(); opts.again(); } }, 'New round'),
+        h('button', { class: 'btn', type: 'button', onclick: () => { sess.clear(); rebuild(); draw(); } }, 'Restart set'),
+        opts.backHref && h('a', { class: 'btn ghost', href: opts.backHref }, opts.backLabel || 'Back')));
+  }
+
+  function reviewSummary() {
+    const sc = score();
+    const pct = Math.round((100 * sc.right) / sc.total);
+    return h('section', { class: 'summary card-box' },
+      h('h2', null, 'Exam submitted'),
+      h('div', { class: 'big-score' }, `${sc.right} / ${sc.total}`, h('span', null, ` · ${pct}%`)),
+      sc.pending > 0 && h('p', { class: 'muted' }, `${sc.pending} short-answer question${sc.pending > 1 ? 's' : ''} still need${sc.pending > 1 ? '' : 's'} self-grading below (counted as 0 until marked).`),
+      h('div', { class: 'sec-scores' }, [...sc.secs].map(([k, v]) => h('div', { class: 'sec-score' },
+        h('div', { class: 'sec-name' }, k), h('div', { class: 'bar' }, h('span', { style: `width:${v.total ? (100 * v.right) / v.total : 0}%` })),
+        h('div', { class: 'sec-num' }, `${v.right}/${v.total}`)))),
+      h('p', { class: 'muted' }, 'Review each question below. Wrong answers were added to your Missed queue.'));
+  }
+
+  function draw() {
+    const kids = [];
+    kids.push(h('div', { class: 'engine-head' },
+      opts.backHref && h('a', { class: 'back', href: opts.backHref }, '← ' + (opts.backLabel || 'Back')),
+      h('h1', null, opts.title)));
+    if (S.phase === 'summary') { fill(root, ...kids, summary()); return; }
+    if (timed) {
+      timerEl = h('span', { class: 'timer', role: 'timer', 'aria-label': 'Time remaining' }, S.phase === 'run' ? fmtTime(Math.ceil(Math.max(0, endsAt - Date.now()) / 1000)).padStart(5, '0') : 'Done');
+      kids.push(h('div', { class: 'timed-bar' },
+        h('span', null, S.phase === 'run' ? 'Timed exam · no feedback until you submit' : 'Review'),
+        S.phase === 'run' && timerEl,
+        S.phase === 'run' && h('button', { class: 'btn small', type: 'button', onclick: () => { S.confirming = true; draw(); } }, 'Submit exam')));
+      if (S.confirming && S.phase === 'run') {
+        const un = items.filter((i) => !hasResp(i.q, st(i.q).resp)).length;
+        kids.push(h('div', { class: 'confirm-box', role: 'alertdialog' },
+          h('p', null, un ? `${un} question${un > 1 ? 's are' : ' is'} unanswered. Submit anyway?` : 'Submit your exam now?'),
+          h('button', { class: 'btn primary', type: 'button', onclick: submitTimed }, 'Yes, submit'),
+          h('button', { class: 'btn', type: 'button', onclick: () => { S.confirming = false; draw(); } }, 'Keep working')));
+      }
+      if (S.phase === 'review') kids.push(reviewSummary());
+    } else {
+      kids.push(toolbar());
+    }
+    if (!S.list.length) {
+      kids.push(h('div', { class: 'empty card-box' }, h('p', null, items.length ? 'No questions match this filter.' : 'No questions here yet.'), items.length > 0 && h('button', { class: 'btn', type: 'button', onclick: () => { S.filter = 'all'; rebuild(); draw(); } }, 'Show all')));
+      fill(root, ...kids); return;
+    }
+    const answeredN = S.list.filter((i) => st(i.q).done || (timed && S.phase === 'run' && hasResp(i.q, st(i.q).resp))).length;
+    kids.push(h('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': S.list.length, 'aria-valuenow': answeredN, 'aria-label': 'Progress' },
+      h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })),
+    h('div', { class: 'progress-label' }, `Question ${S.idx + 1} of ${S.list.length} · ${answeredN} answered`));
+    kids.push(navigator(), card(cur()));
+    fill(root, ...kids);
+    const f = root.querySelector('.timed-bar'); if (!f && timerEl) timerEl = null;
+  }
+
+  function cleanup() {
+    document.removeEventListener('keydown', onKey);
+    clearInterval(timerId);
+  }
+  draw();
+  return cleanup;
+}
+
+// ---- module practice route ----
+export function render(ctx) {
+  const [id] = ctx.params;
+  const mod = ctx.mods.get(id);
+  if (!mod) { ctx.root.append(h('p', null, 'Module not found.')); return; }
+  document.title = 'Practice: ' + mod.title + ' · ' + HUB.short;
+  const items = (mod.questions || []).map((q) => ({ q }));
+  const root = h('div', { class: 'wrap engine' });
+  ctx.root.append(root);
+  ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/m/' + id, backLabel: 'Module', defaultOrder: 'gsi' }));
+}
