@@ -1,7 +1,7 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=183898d02e';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=183898d02e';
-import * as store from '../lib/store.js?v=183898d02e';
+import { HUB } from '../hub.js?v=3adaee6e93';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=3adaee6e93';
+import * as store from '../lib/store.js?v=3adaee6e93';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -173,11 +173,11 @@ export function mountEngine(root, opts) {
     if (!filtersOn) return null;
     const counts = { all: items.length, unanswered: items.filter((i) => !store.getQ(i.q.id)).length, missed: items.filter((i) => { const a = store.getQ(i.q.id); return a && !a.ok; }).length, emphasis: items.filter((i) => i.q.emphasis).length, gsi: items.filter((i) => i.q.gsi).length };
     const sel = h('select', { id: 'flt', 'aria-label': 'Filter questions', onchange: (e) => { S.filter = e.target.value; rebuild(); draw(); } },
-      ...[['all', 'All'], ['unanswered', 'Unanswered'], ['missed', 'Missed'], ['emphasis', 'Prof emphasis'], ['gsi', '🎯 ' + HUB.focus.short + ' focus only']].map(([v, l]) => h('option', { value: v, selected: v === S.filter }, `${l} (${counts[v]})`)));
+      ...[['all', 'All'], ['unanswered', 'Unanswered'], ['missed', 'Missed'], ['emphasis', 'Prof emphasis'], ['gsi', HUB.focus.short + ' focus only']].map(([v, l]) => h('option', { value: v, selected: v === S.filter }, `${l} (${counts[v]})`)));
     const ord = h('select', { id: 'ord', 'aria-label': 'Question order', disabled: S.shuffle, onchange: (e) => { S.order = e.target.value; rebuild(); draw(); } },
       ...[['orig', 'Original order'], ['gsi', HUB.focus.short + ' first']].map(([v, l]) => h('option', { value: v, selected: v === S.order }, l)));
-    return h('div', { class: 'toolbar' }, h('label', { class: 'field-inline', for: 'flt' }, 'Show'), sel,
-      h('label', { class: 'field-inline', for: 'ord' }, 'Order'), ord,
+    return h('div', { class: 'toolbar' }, h('span', { class: 'field-group' }, h('label', { class: 'field-inline', for: 'flt' }, 'Show'), sel),
+      h('span', { class: 'field-group' }, h('label', { class: 'field-inline', for: 'ord' }, 'Order'), ord),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: S.shuffle, onchange: (e) => { S.shuffle = e.target.checked; rebuild(); draw(); } }), ' Shuffle'));
   }
 
@@ -202,7 +202,7 @@ export function mountEngine(root, opts) {
       if (sel(i)) c += ' selected';
       if (fb) { if (isAns(i)) c += sel(i) || q.type !== 'multi' ? ' correct' : ' correct missed'; else if (sel(i)) c += ' wrong'; }
       return h('button', { class: c, type: 'button', 'data-i': i, role: q.type === 'multi' ? 'checkbox' : 'radio', 'aria-checked': sel(i) ? 'true' : 'false', disabled: locked, onclick: () => pick(i) },
-        h('span', { class: 'opt-key', 'aria-hidden': 'true' }, q.type === 'multi' ? (sel(i) ? '☑' : '☐') : String(i + 1)),
+        h('span', { class: 'opt-key', 'aria-hidden': 'true' }, String(i + 1)),
         h('span', { class: 'opt-text', html: mdInline(t) }),
         fb && isAns(i) && h('span', { class: 'opt-flag', 'aria-label': 'correct answer' }, '✓'),
         fb && !isAns(i) && sel(i) && h('span', { class: 'opt-flag', 'aria-label': 'your answer, incorrect' }, '✗'));
@@ -216,8 +216,8 @@ export function mountEngine(root, opts) {
     const body = [];
     if (it.section && opts.showSections !== false) body.push(h('div', { class: 'q-section' }, it.section));
     body.push(h('div', { class: 'q-meta' },
-      h('span', { class: 'q-type' }, { mcq: 'Multiple choice', tf: 'True / False', multi: 'Select all that apply', numeric: 'Numeric', short: 'Short answer' }[q.type]),
-      q.gsi && h('span', { class: 'badge gsi lv' + q.gsi, title: HUB.focus.label + ': ' + GSI_LEVEL[q.gsi] }, '🎯 ' + HUB.focus.short),
+      h('span', { class: 'q-type' }, { mcq: 'Multiple choice', tf: 'True or false', multi: 'Select all that apply', numeric: 'Numeric', short: 'Short answer' }[q.type]),
+      q.gsi && h('span', { class: 'tag-focus', title: HUB.focus.label + ': ' + GSI_LEVEL[q.gsi] }, HUB.focus.short),
       it.label && h('span', { class: 'q-label' }, it.href ? h('a', { href: it.href }, it.label) : it.label)));
     body.push(h('div', { class: 'prompt', html: md(q.prompt) }));
     if (q.figure) body.push(figureEl(q.figure));
@@ -237,8 +237,8 @@ export function mountEngine(root, opts) {
       if (s.revealed) {
         body.push(h('div', { class: 'model-answer' }, h('div', { class: 'ma-title' }, 'Model answer'), h('div', { class: 'md', html: md(q.answer) })));
         if (!s.done) body.push(h('div', { class: 'selfmark' }, h('span', null, 'How did you do?'),
-          h('button', { class: 'btn good', type: 'button', onclick: () => mark(true) }, '1 · Got it'),
-          h('button', { class: 'btn bad', type: 'button', onclick: () => mark(false) }, '2 · Missed it')));
+          h('button', { class: 'btn good', type: 'button', onclick: () => mark(true) }, 'Got it (1)'),
+          h('button', { class: 'btn bad', type: 'button', onclick: () => mark(false) }, 'Missed it (2)')));
       }
     }
 
@@ -246,14 +246,14 @@ export function mountEngine(root, opts) {
       const ok = s.ok;
       const fbEl = h('div', { class: 'feedback ' + (ok ? 'fb-ok' : 'fb-bad'), role: 'status' },
         h('div', { class: 'fb-head' }, ok ? (q.type === 'short' ? '✓ Got it' : '✓ Correct') : (q.type === 'short' ? '✗ Missed it' : '✗ Incorrect'),
-          q.type === 'numeric' && !ok && h('span', { class: 'fb-ans' }, ' · Answer: ', fmtAns(q))),
+          q.type === 'numeric' && !ok && h('span', { class: 'fb-ans' }, 'Answer: ', fmtAns(q))),
         q.type === 'numeric' && ok && h('div', { class: 'fb-sub' }, 'Answer: ' + fmtAns(q)),
         q.explanation && h('div', { class: 'md', html: md(q.explanation) }),
-        h('div', { class: 'badges' },
-          q.source && h('span', { class: 'badge src' }, 'Source: ' + q.source),
-          q.emphasis && h('span', { class: 'badge emph' }, '★ Professor emphasis'),
-          q.difficulty && h('span', { class: 'badge d' + q.difficulty }, DIFF[q.difficulty]),
-          (q.tags || []).filter((t) => t !== 'sample').map((t) => h('span', { class: 'badge tag' }, t))));
+        h('div', { class: 'fb-tags' },
+          q.source && h('span', null, 'Source: ' + q.source),
+          q.emphasis && h('span', { class: 'emph' }, 'Professor emphasis'),
+          q.difficulty && h('span', null, DIFF[q.difficulty]),
+          (q.tags || []).filter((t) => t !== 'sample').map((t) => h('span', null, t))));
       body.push(fbEl);
     }
     if (timed && S.phase === 'review' && q.type === 'short' && !s.done) { /* self-mark shown above */ }
@@ -261,12 +261,12 @@ export function mountEngine(root, opts) {
     // footer controls
     const last = S.idx === S.list.length - 1;
     const foot = h('div', { class: 'q-foot' },
-      h('button', { class: 'btn ghost', type: 'button', disabled: S.idx === 0, onclick: () => go(-1) }, '← Prev'));
-    if (timed && S.phase === 'run') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? 'Review & submit' : 'Next →'));
+      h('button', { class: 'btn ghost', type: 'button', disabled: S.idx === 0, onclick: () => go(-1) }, 'Previous'));
+    if (timed && S.phase === 'run') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? 'Review and submit' : 'Next'));
     else if (!timed && !s.done && q.type !== 'short') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Check answer'));
     else if (!timed && !s.done && q.type === 'short' && !s.revealed) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Reveal answer'));
-    else if (s.done || (timed && S.phase === 'review')) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? (timed ? 'Back to start' : 'Finish') : 'Next →'));
-    return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot, !timed && h('div', { class: 'kbd-hint' }, 'Keys: 1–5 choose · Enter check / next · ← → move'));
+    else if (s.done || (timed && S.phase === 'review')) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? (timed ? 'Back to start' : 'Finish') : 'Next'));
+    return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot, !timed && h('div', { class: 'kbd-hint' }, 'Keys: 1 to 5 choose, Enter checks or advances, arrow keys move'));
   }
 
   function summary() {
@@ -275,9 +275,9 @@ export function mountEngine(root, opts) {
     const pct = answered.length ? Math.round((100 * right) / answered.length) : 0;
     const missed = rows.filter((r) => r.s.done && !r.s.ok);
     const skipped = rows.filter((r) => !r.s.done);
-    return h('section', { class: 'summary card-box' },
+    return h('section', { class: 'summary' },
       h('h2', null, 'Set complete'),
-      h('div', { class: 'big-score' }, `${right} / ${answered.length}`, h('span', null, ` correct · ${pct}%`)),
+      h('div', { class: 'big-score' }, String(right), h('span', null, `of ${answered.length} correct (${pct}%)`)),
       skipped.length > 0 && h('p', { class: 'muted' }, `${skipped.length} question${skipped.length > 1 ? 's' : ''} not answered.`),
       h('ul', { class: 'sum-list' }, rows.map(({ it, i, s }) => h('li', { class: s.done ? (s.ok ? 'ok' : 'bad') : 'skip' },
         h('button', { class: 'linkish', type: 'button', onclick: () => { S.phase = 'run'; S.idx = i; draw(); } },
@@ -293,26 +293,26 @@ export function mountEngine(root, opts) {
   function reviewSummary() {
     const sc = score();
     const pct = Math.round((100 * sc.right) / sc.total);
-    return h('section', { class: 'summary card-box' },
+    return h('section', { class: 'summary' },
       h('h2', null, 'Exam submitted'),
-      h('div', { class: 'big-score' }, `${sc.right} / ${sc.total}`, h('span', null, ` · ${pct}%`)),
+      h('div', { class: 'big-score' }, String(sc.right), h('span', null, `of ${sc.total} correct (${pct}%)`)),
       sc.pending > 0 && h('p', { class: 'muted' }, `${sc.pending} short-answer question${sc.pending > 1 ? 's' : ''} still need${sc.pending > 1 ? '' : 's'} self-grading below (counted as 0 until marked).`),
       h('div', { class: 'sec-scores' }, [...sc.secs].map(([k, v]) => h('div', { class: 'sec-score' },
         h('div', { class: 'sec-name' }, k), h('div', { class: 'bar' }, h('span', { style: `width:${v.total ? (100 * v.right) / v.total : 0}%` })),
-        h('div', { class: 'sec-num' }, `${v.right}/${v.total}`)))),
+        h('div', { class: 'sec-num' }, `${v.right} of ${v.total}`)))),
       h('p', { class: 'muted' }, 'Review each question below. Wrong answers were added to your Missed queue.'));
   }
 
   function draw() {
     const kids = [];
     kids.push(h('div', { class: 'engine-head' },
-      opts.backHref && h('a', { class: 'back', href: opts.backHref }, '← ' + (opts.backLabel || 'Back')),
+      opts.backHref && h('a', { class: 'back', href: opts.backHref }, '' + (opts.backLabel || 'Back')),
       h('h1', null, opts.title)));
     if (S.phase === 'summary') { fill(root, ...kids, summary()); return; }
     if (timed) {
       timerEl = h('span', { class: 'timer', role: 'timer', 'aria-label': 'Time remaining' }, S.phase === 'run' ? fmtTime(Math.ceil(Math.max(0, endsAt - Date.now()) / 1000)).padStart(5, '0') : 'Done');
       kids.push(h('div', { class: 'timed-bar' },
-        h('span', null, S.phase === 'run' ? 'Timed exam · no feedback until you submit' : 'Review'),
+        h('span', null, S.phase === 'run' ? 'Timed exam, no feedback until you submit' : 'Review'),
         S.phase === 'run' && timerEl,
         S.phase === 'run' && h('button', { class: 'btn small', type: 'button', onclick: () => { S.confirming = true; draw(); } }, 'Submit exam')));
       if (S.confirming && S.phase === 'run') {
@@ -327,13 +327,13 @@ export function mountEngine(root, opts) {
       kids.push(toolbar());
     }
     if (!S.list.length) {
-      kids.push(h('div', { class: 'empty card-box' }, h('p', null, items.length ? 'No questions match this filter.' : 'No questions here yet.'), items.length > 0 && h('button', { class: 'btn', type: 'button', onclick: () => { S.filter = 'all'; rebuild(); draw(); } }, 'Show all')));
+      kids.push(h('div', { class: 'empty' }, h('p', null, items.length ? 'No questions match this filter.' : 'No questions here yet.'), items.length > 0 && h('button', { class: 'btn', type: 'button', onclick: () => { S.filter = 'all'; rebuild(); draw(); } }, 'Show all')));
       fill(root, ...kids); return;
     }
     const answeredN = S.list.filter((i) => st(i.q).done || (timed && S.phase === 'run' && hasResp(i.q, st(i.q).resp))).length;
     kids.push(h('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': S.list.length, 'aria-valuenow': answeredN, 'aria-label': 'Progress' },
       h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })),
-    h('div', { class: 'progress-label' }, `Question ${S.idx + 1} of ${S.list.length} · ${answeredN} answered`));
+    h('div', { class: 'progress-label' }, `Question ${S.idx + 1} of ${S.list.length}, ${answeredN} answered`));
     kids.push(navigator(), card(cur()));
     fill(root, ...kids);
     const f = root.querySelector('.timed-bar'); if (!f && timerEl) timerEl = null;

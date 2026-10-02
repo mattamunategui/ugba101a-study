@@ -1,17 +1,17 @@
-import { HUB } from './hub.js?v=183898d02e';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=183898d02e';
-import * as store from './lib/store.js?v=183898d02e';
-import { h, applyTheme, md } from './lib/render.js?v=183898d02e';
+import { HUB } from './hub.js?v=3adaee6e93';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=3adaee6e93';
+import * as store from './lib/store.js?v=3adaee6e93';
+import { h, applyTheme, md } from './lib/render.js?v=3adaee6e93';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=183898d02e'),
-  m: () => import('./views/module.js?v=183898d02e'),
-  focus: () => import('./views/focus.js?v=183898d02e'),
-  practice: () => import('./views/practice.js?v=183898d02e'),
-  memorize: () => import('./views/memorize.js?v=183898d02e'),
-  exam: () => import('./views/exam.js?v=183898d02e'),
-  missed: () => import('./views/missed.js?v=183898d02e'),
-  settings: () => import('./views/settings.js?v=183898d02e'),
+  '': () => import('./views/home.js?v=3adaee6e93'),
+  m: () => import('./views/module.js?v=3adaee6e93'),
+  focus: () => import('./views/focus.js?v=3adaee6e93'),
+  practice: () => import('./views/practice.js?v=3adaee6e93'),
+  memorize: () => import('./views/memorize.js?v=3adaee6e93'),
+  exam: () => import('./views/exam.js?v=3adaee6e93'),
+  missed: () => import('./views/missed.js?v=3adaee6e93'),
+  settings: () => import('./views/settings.js?v=3adaee6e93'),
 };
 
 const app = document.getElementById('app');
@@ -36,7 +36,6 @@ function showGate(message = '', busy = false) {
     form.classList.add('loading');
     await tryUnlock(p, true);
   } },
-  h('img', { class: 'gate-logo', src: 'icon.svg', alt: '', width: 56, height: 56 }),
   h('h1', null, HUB.name),
   h('p', { class: 'muted' }, 'Enter the passcode to open the hub.'),
   h('label', { class: 'sr-only', for: 'pass' }, 'Passcode'), input, btn, err,
@@ -68,7 +67,7 @@ function lock() {
   store.clearPass();
   cleanup();
   bundle = null;
-  showGate('Locked.');
+  showGate();
 }
 
 // ---------- shell + router ----------
@@ -122,11 +121,11 @@ function refreshNav() {
     h('span', { class: 'nl-full' }, text), h('span', { class: 'nl-short', 'aria-hidden': 'true' }, short || text), extra);
   navEl.replaceChildren(
     link('#/', 'Home', ''),
-    link('#/focus', 'Exam Focus', 'focus', null, '🎯 Focus'),
+    link('#/focus', 'Exam Focus', 'focus', null, 'Focus'),
     link('#/memorize', 'Memorize', 'memorize', null, 'Cards'),
     link('#/exam', 'Exams', 'exam'),
     link('#/missed', 'Missed', 'missed', missed ? h('span', { class: 'pill' }, String(missed)) : null),
-    link('#/settings', 'Settings', 'settings', null, '⚙'));
+    link('#/settings', 'Settings', 'settings', null, 'Settings'));
 }
 
 async function route() {

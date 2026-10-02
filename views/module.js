@@ -1,10 +1,9 @@
-import { HUB } from '../hub.js?v=183898d02e';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=183898d02e';
-import * as store from '../lib/store.js?v=183898d02e';
+import { HUB } from '../hub.js?v=3adaee6e93';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=3adaee6e93';
+import * as store from '../lib/store.js?v=3adaee6e93';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
-export const levelPill = (l) => h('span', { class: 'gsi-lv lv' + l, title: HUB.focus.short + ' level ' + l + ' of 3' },
-  h('span', { class: 'gsi-dots', 'aria-hidden': 'true' }, [1, 2, 3].map((i) => h('i', { class: i <= l ? 'on' : '' }))), GSI_LEVEL[l] || 'Covered');
+export const levelPill = (l) => h('span', { class: 'gsi-lv lv' + l, title: HUB.focus.short + ' level ' + l + ' of 3' }, GSI_LEVEL[l] || 'Covered');
 
 export function render(ctx) {
   const [id] = ctx.params;
@@ -30,9 +29,8 @@ export function render(ctx) {
   const paint = (sid) => {
     const e = readEls.get(sid); const on = store.isRead(id, sid);
     e.toc.classList.toggle('read', on);
-    e.sec.classList.toggle('is-read', on);
     e.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    e.btn.textContent = on ? '✓ Read' : 'Mark read';
+    e.btn.textContent = on ? 'Read' : 'Mark read';
     e.btn.classList.toggle('on', on);
     updateProgress();
   };
@@ -42,12 +40,12 @@ export function render(ctx) {
 
   // header
   const head = h('header', { class: 'mod-head' },
-    h('a', { class: 'back', href: '#/' }, '← All modules'),
-    h('div', { class: 'eyebrow' }, lectureLabel(mod.lecture)),
+    h('a', { class: 'back', href: '#/' }, 'All modules'),
+    h('div', { class: 'lec' }, lectureLabel(mod.lecture)),
     h('h1', null, mod.title),
     mod.summary && h('p', { class: 'lede', html: mdInline(mod.summary) }),
     h('div', { class: 'mini-progress' }, h('div', { class: 'progress' }, progFill), progText),
-    (mod.objectives || []).length > 0 && h('div', { class: 'objectives card-box' }, h('h2', null, 'Learning objectives'),
+    (mod.objectives || []).length > 0 && h('section', { class: 'objectives' }, h('h2', null, 'Learning objectives'),
       h('ul', null, mod.objectives.map((o) => h('li', { html: mdInline(o) })))),
     (mod.textbookRefs || []).length > 0 && h('p', { class: 'muted small' }, 'Textbook: ' + mod.textbookRefs.join(', ')));
 
@@ -58,43 +56,43 @@ export function render(ctx) {
     const sid = 'sec-' + s.id;
     const btn = h('button', { class: 'btn small read-toggle', type: 'button', 'aria-pressed': 'false', onclick: () => { store.setRead(id, s.id, !store.isRead(id, s.id)); paint(s.id); } }, 'Mark read');
     const sec = h('section', { class: 'sec', id: sid, 'aria-labelledby': sid + '-h' },
-      h('div', { class: 'sec-head' }, h('h2', { id: sid + '-h' }, h('span', { class: 'sec-n' }, String(i + 1)), ' ', s.heading), btn),
+      h('div', { class: 'sec-head' }, h('h2', { id: sid + '-h' }, h('span', { class: 'sec-n' }, String(i + 1)), s.heading), btn),
       h('div', { class: 'md', html: md(s.body) }));
     (s.figures || []).forEach((f) => sec.append(figureEl(f)));
     const gsi = (s.gsiFocus || []).filter((g) => g && g.text);
     if (gsi.length) sec.append(h('aside', { class: 'gsi-focus', 'aria-label': HUB.focus.label },
-      h('div', { class: 'gf-title' }, '🎯 ' + HUB.focus.label),
+      h('div', { class: 'gf-title' }, HUB.focus.label),
       h('ul', { class: 'gf-list' }, [...gsi].sort((a, b) => (b.level || 1) - (a.level || 1)).map((g) => h('li', null,
         h('span', { class: 'gf-text', html: mdInline(g.text) }),
         h('span', { class: 'gf-meta' }, levelPill(g.level || 1), g.source && h('span', { class: 'gf-src' }, g.source)))))));
     const emph = s.profEmphasis || [];
     if (emph.length) sec.append(h('aside', { class: 'prof-emph', 'aria-label': 'Professor emphasis' },
-      h('div', { class: 'pe-title' }, emph.length > 1 ? `★ Professor emphasis (${emph.length})` : '★ Professor emphasis'),
+      h('div', { class: 'pe-title' }, 'Professor emphasis'),
       h('ul', { class: 'pe-list' }, emph.map((e) => h('li', null,
         h('span', { class: 'pe-text', html: mdInline(e.text) }),
         e.source && h('span', { class: 'pe-src' }, e.source))))));
-    if ((s.resources || []).length) sec.append(h('div', { class: 'res-list' }, h('h3', null, 'Watch / read'), s.resources.map(resourceEl)));
+    if ((s.resources || []).length) sec.append(h('div', { class: 'res-list' }, h('h3', null, 'Watch or read'), s.resources.map(resourceEl)));
     const sentinel = h('div', { class: 'sentinel', 'aria-hidden': 'true', 'data-sid': s.id });
     sec.append(sentinel);
     main.append(sec);
     const tl = h('a', { href: '#', onclick: (e) => { e.preventDefault(); sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, s.heading);
     const top = Math.max(0, ...(s.gsiFocus || []).map((g) => g.level || 1));
-    const li = h('li', null, tl, top >= 2 && h('span', { class: 'gsi-chip', title: HUB.focus.label + ': ' + GSI_LEVEL[top] }, '🎯 ' + HUB.focus.short + ' focus'));
+    const li = h('li', { class: top >= 2 ? 'focus-' + top : null, title: top >= 2 ? HUB.focus.label + ': ' + GSI_LEVEL[top] : null }, tl, top >= 2 && h('span', { class: 'sr-only' }, ', ' + HUB.focus.label));
     toc.append(li);
     readEls.set(s.id, { toc: li, btn, sec, sentinel });
   });
 
-  if ((mod.keyTakeaways || []).length) main.append(h('section', { class: 'takeaways card-box' }, h('h2', null, 'Key takeaways'), h('ul', null, mod.keyTakeaways.map((t) => h('li', { html: mdInline(t) })))));
+  if ((mod.keyTakeaways || []).length) main.append(h('section', { class: 'takeaways' }, h('h2', null, 'Key takeaways'), h('ul', null, mod.keyTakeaways.map((t) => h('li', { html: mdInline(t) })))));
   if ((mod.resources || []).length) main.append(h('section', { class: 'sec' }, h('h2', null, 'More resources'), h('div', { class: 'res-list' }, mod.resources.map(resourceEl))));
   main.append(q > 0
-    ? h('a', { class: 'cta', href: '#/practice/' + id }, h('span', { class: 'cta-big' }, `Practice: ${q} question${q > 1 ? 's' : ''}`), h('span', { class: 'cta-sub' }, scoreText(store.moduleScore(mod))), h('span', { class: 'cta-arrow', 'aria-hidden': 'true' }, '→'))
+    ? h('div', { class: 'cta' }, h('a', { class: 'btn primary', href: '#/practice/' + id }, `Practice ${q} question${q > 1 ? 's' : ''}`), h('span', { class: 'muted small' }, scoreText(store.moduleScore(mod))))
     : h('p', { class: 'muted' }, 'No practice questions yet.'));
   main.append(h('nav', { class: 'pn', 'aria-label': 'Module navigation' },
-    prev ? h('a', { class: 'pn-link', href: '#/m/' + prev.id }, h('span', null, '← Previous'), h('strong', null, prev.title)) : h('span'),
-    next ? h('a', { class: 'pn-link next', href: '#/m/' + next.id }, h('span', null, 'Next →'), h('strong', null, next.title)) : h('span')));
+    prev ? h('a', { class: 'pn-link', href: '#/m/' + prev.id }, 'Previous: ' + prev.title) : h('span'),
+    next ? h('a', { class: 'pn-link next', href: '#/m/' + next.id }, 'Next: ' + next.title) : h('span')));
 
   const side = h('aside', { class: 'mod-side' }, h('div', { class: 'toc-box' }, h('div', { class: 'toc-title' }, 'On this page'), toc,
-    q > 0 && h('a', { class: 'btn primary small', href: '#/practice/' + id }, 'Practice →')));
+    q > 0 && h('a', { class: 'btn primary small', href: '#/practice/' + id }, 'Practice')));
 
   main.prepend(head);
   put(root, h('div', { class: 'wrap wide' }, h('div', { class: 'mod-layout' }, main, side)));
@@ -139,5 +137,5 @@ export function lectureLabel(l) {
 }
 export function scoreText(s) {
   if (!s.attempted) return 'Not started';
-  return `${s.correct}/${s.total} correct · ${s.attempted} attempted`;
+  return `${s.correct} of ${s.total} correct, ${s.attempted} attempted`;
 }

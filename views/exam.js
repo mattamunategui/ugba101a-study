@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=183898d02e';
-import { h, md, fill, put } from '../lib/render.js?v=183898d02e';
-import * as store from '../lib/store.js?v=183898d02e';
-import { mountEngine } from './practice.js?v=183898d02e';
+import { HUB } from '../hub.js?v=3adaee6e93';
+import { h, md, fill, put } from '../lib/render.js?v=3adaee6e93';
+import * as store from '../lib/store.js?v=3adaee6e93';
+import { mountEngine } from './practice.js?v=3adaee6e93';
 
 function examItems(ctx, exam) {
   const out = [];
@@ -18,16 +18,16 @@ export function render(ctx) {
   ctx.root.append(root);
   if (!id) {
     document.title = 'Exam practice' + ' · ' + HUB.short;
-    put(root, h('a', { class: 'back', href: '#/' }, '← Home'), h('h1', null, 'Exam practice'));
+    put(root, h('a', { class: 'back', href: '#/' }, 'Home'), h('h1', null, 'Exam practice'));
     for (const part of ctx.course.parts) {
       const ex = part.exams.map((e) => ctx.exams.get(e)).filter(Boolean);
       if (!ex.length) continue;
       put(root, h('h2', { class: 'section-title' }, part.title));
-      put(root, h('div', { class: 'cards one' }, ex.map((e) => {
+      put(root, h('div', { class: 'rlist' }, ex.map((e) => {
         const n = examItems(ctx, e).length, r = store.getExamResult(e.id);
-        return h('a', { class: 'mod-card', href: '#/exam/' + e.id },
-          h('h3', null, e.title), h('p', { class: 'mod-sum', html: md(e.description || '', true) }),
-          h('div', { class: 'small muted' }, `${n} questions${e.timed ? ` · ${e.timed} min timed` : ''}${r ? ` · last timed score ${r.score}/${r.total}` : ''}`));
+        return h('a', { href: '#/exam/' + e.id },
+          h('h3', { class: 'rr-title' }, e.title), h('p', { class: 'rr-sub', html: md(e.description || '', true) }),
+          h('div', { class: 'rr-meta' }, h('span', null, `${n} questions`), e.timed && h('span', null, `${e.timed} min timed`), r && h('span', null, `last timed score ${r.score} of ${r.total}`)));
       })));
     }
     if (!ctx.bundle.exams.length) put(root, h('p', { class: 'muted' }, 'No exam sets yet.'));
@@ -39,14 +39,14 @@ export function render(ctx) {
   const items = examItems(ctx, exam);
   if (!mode) {
     const r = store.getExamResult(id);
-    put(root, h('a', { class: 'back', href: '#/exam' }, '← Exam sets'), h('h1', null, exam.title),
+    put(root, h('a', { class: 'back', href: '#/exam' }, 'Exam sets'), h('h1', null, exam.title),
       exam.description && h('p', { class: 'lede', html: md(exam.description, true) }),
-      h('div', { class: 'card-box' }, h('h2', null, 'Sections'),
-        h('ul', null, (exam.sections || []).map((s) => h('li', null, s.heading, h('span', { class: 'muted' }, ` · ${(s.questions || []).length + (s.questionIds || []).length} questions`))))),
-      r && h('p', { class: 'muted' }, `Last timed result: ${r.score}/${r.total} (${Math.round((100 * r.score) / r.total)}%)`),
+      h('h2', null, 'Sections'),
+      h('ul', { class: 'rlist' }, (exam.sections || []).map((s) => h('li', null, s.heading, h('span', { class: 'muted' }, `, ${(s.questions || []).length + (s.questionIds || []).length} questions`)))),
+      r && h('p', { class: 'muted' }, `Last timed result: ${r.score} of ${r.total} (${Math.round((100 * r.score) / r.total)}%)`),
       h('div', { class: 'row-actions' },
-        h('a', { class: 'btn primary', href: `#/exam/${id}/practice` }, 'Practice mode'),
-        exam.timed && h('a', { class: 'btn', href: `#/exam/${id}/timed` }, `Timed mode · ${exam.timed} min`)),
+        h('a', { class: 'btn', href: `#/exam/${id}/practice` }, 'Practice mode'),
+        exam.timed && h('a', { class: 'btn', href: `#/exam/${id}/timed` }, `Timed, ${exam.timed} minutes`)),
       h('p', { class: 'muted small' }, 'Practice mode gives immediate feedback on each question. Timed mode hides answers until you submit, then shows your score by section.'));
     return;
   }
