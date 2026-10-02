@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=3adaee6e93';
-import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=3adaee6e93';
-import * as store from '../lib/store.js?v=3adaee6e93';
-import { mountEngine } from './practice.js?v=3adaee6e93';
+import { HUB } from '../hub.js?v=79223900bd';
+import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=79223900bd';
+import * as store from '../lib/store.js?v=79223900bd';
+import { mountEngine } from './practice.js?v=79223900bd';
 
 const FIELD_NAMES = { three: '3-letter code', one: '1-letter code', cls: 'class', class: 'class', group: 'category', doubleBonds: 'number of double bonds', notation: 'C:DB notation', pKaR: 'side-chain pKa' };
 const ID_KEYS = ['name', 'title', 'topic', 'term', 'item'];
@@ -168,8 +168,8 @@ export function flash(ctx, root, deck, cards, all = false, o = {}) {
     const c = queue[0];
     const front = h('div', { class: 'fc-face' }, isGsi(c) && h('span', { class: 'tag-focus', title: HUB.focus.label }, HUB.focus.short + ' focus'), h('div', { class: 'md fc-text', html: md(c.front) }), c.figure && figureEl(bare(c.figure)));
     const back = h('div', { class: 'fc-face back' }, h('div', { class: 'md fc-text', html: md(c.back) }),
-      c.fields && h('dl', { class: 'fc-fields' }, Object.entries(c.fields).filter(([, v]) => v != null && v !== '').map(([k, v]) => [h('dt', null, fieldName(deckOf(c), k)), h('dd', null, String(v))])),
-      c.source && h('div', { class: 'small muted' }, 'Source: ' + c.source));
+      (c.fields || c.source) && h('dl', { class: 'fc-fields' }, Object.entries(c.fields || {}).filter(([, v]) => v != null && v !== '').map(([k, v]) => [h('dt', null, fieldName(deckOf(c), k)), h('dd', null, String(v))]),
+        c.source && [h('dt', null, 'Source'), h('dd', null, String(c.source))]));
     const sc = store.getCard(c.id);
     fill(root, head,
       h('div', { class: 'progress-label' }, `${queue.length} left, box ${sc?.b || 1}${sc ? '' : ' (new)'}`),
