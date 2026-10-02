@@ -1,7 +1,7 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=79223900bd';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=79223900bd';
-import * as store from '../lib/store.js?v=79223900bd';
+import { HUB } from '../hub.js?v=9324167050';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=9324167050';
+import * as store from '../lib/store.js?v=9324167050';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -87,9 +87,12 @@ export function mountEngine(root, opts) {
   // ---- actions ----
   const cur = () => S.list[S.idx];
   function showFeedback(s) { return s.done || (timed && S.phase === 'review'); }
+  // Untimed wrong answer awaiting retry ("Not quite"): the question counts as wrong, answer not yet revealed.
+  const fin = (s) => s.done || !!s.wrong;
+  const okOf = (s) => s.firstOk ?? s.ok; // first-attempt correctness, so retries can't inflate scores
   function pick(i) {
     const it = cur(); if (!it) return; const q = it.q, s = st(q);
-    if (s.done || (timed && S.phase === 'review')) return;
+    if (fin(s) || (timed && S.phase === 'review')) return;
     if (q.type === 'mcq') s.resp = i;
     else if (q.type === 'tf') s.resp = i === 0;
     else if (q.type === 'multi') { const set = new Set(s.resp || []); set.has(i) ? set.delete(i) : set.add(i); s.resp = [...set]; }
@@ -100,11 +103,25 @@ export function mountEngine(root, opts) {
     if (s.done) return;
     if (q.type === 'short') { if (!s.revealed) { s.revealed = true; draw(); } return; }
     if (!hasResp(q, s.resp)) { s.hint = q.type === 'numeric' ? 'Enter a number, like 8, 1.5e-3, or 1.5×10^-3.' : 'Choose an answer first.'; draw(); return; }
-    s.hint = null; s.done = true; s.ok = grade(q, s.resp); record(q, s.ok); draw();
+    s.hint = null;
+    const ok = grade(q, s.resp);
+    s.tries = (s.tries || 0) + 1;
+    if (s.tries === 1) { s.firstOk = ok; record(q, ok); } // only the first attempt is recorded
+    if (ok) { s.ok = true; s.done = true; } else s.wrong = true;
+    draw();
   }
+  function tryAgain() {
+    const it = cur(); if (!it) return; const q = it.q, s = st(q);
+    if (!s.wrong || s.done) return;
+    if (q.type === 'mcq' || q.type === 'tf') (s.elim ||= new Set()).add(s.resp);
+    s.wrong = false; s.resp = undefined; draw();
+    (root.querySelector('.opt:not(.elim)') || root.querySelector('.opt') || root.querySelector('#num'))?.focus();
+  }
+  function showHint() { const s = st(cur().q); s.hintOpen = true; draw(); }
+  function giveUp() { const s = st(cur().q); s.wrong = false; s.done = true; s.ok = false; draw(); }
   function mark(ok) {
     const it = cur(); if (!it) return; const q = it.q, s = st(q);
-    s.resp = ok ? 'got' : 'missed'; s.ok = ok; s.done = true; s.revealed = true;
+    s.resp = ok ? 'got' : 'missed'; s.ok = ok; s.firstOk = ok; s.done = true; s.revealed = true;
     record(q, ok);
     if (timed && S.phase === 'review') saveExam();
     draw();
@@ -154,6 +171,7 @@ export function mountEngine(root, opts) {
       e.preventDefault();
       if (timed && S.phase === 'run') next();
       else if (showFeedback(s)) next();
+      else if (s.wrong) tryAgain();
       else submit();
       return;
     }
@@ -186,7 +204,8 @@ export function mountEngine(root, opts) {
       const s = st(it.q);
       let c = 'qn';
       if (i === S.idx) c += ' current';
-      if (showFeedback(s)) c += s.ok === null ? ' answered' : s.ok ? ' ok' : ' bad';
+      if (s.wrong && !s.done) c += ' bad';
+      else if (showFeedback(s)) { const o = okOf(s); c += o === null ? ' answered' : o ? ' ok' : ' bad'; }
       else if (timed && hasResp(it.q, s.resp)) c += ' answered';
       return h('button', { class: c, type: 'button', 'aria-label': `Question ${i + 1}`, 'aria-current': i === S.idx ? 'true' : null, onclick: () => { S.idx = i; draw(); } }, String(i + 1));
     }));
@@ -197,9 +216,12 @@ export function mountEngine(root, opts) {
     const val = (i) => (q.type === 'tf' ? i === 0 : i);
     const sel = (i) => (q.type === 'multi' ? (s.resp || []).includes(i) : s.resp === val(i));
     const isAns = (i) => (q.type === 'multi' ? q.answer.includes(i) : q.answer === val(i));
+    const elim = (i) => !fb && !s.wrong && s.elim && s.elim.has(val(i));
     return h('div', { class: 'opts', role: q.type === 'multi' ? 'group' : 'radiogroup', 'aria-label': 'Answer choices' }, labels.map((t, i) => {
       let c = 'opt';
       if (sel(i)) c += ' selected';
+      if (elim(i)) c += ' elim';
+      if (s.wrong && !fb && sel(i)) c += ' wrong';
       if (fb) { if (isAns(i)) c += sel(i) || q.type !== 'multi' ? ' correct' : ' correct missed'; else if (sel(i)) c += ' wrong'; }
       return h('button', { class: c, type: 'button', 'data-i': i, role: q.type === 'multi' ? 'checkbox' : 'radio', 'aria-checked': sel(i) ? 'true' : 'false', disabled: locked, onclick: () => pick(i) },
         h('span', { class: 'opt-key', 'aria-hidden': 'true' }, String(i + 1)),
@@ -212,7 +234,7 @@ export function mountEngine(root, opts) {
   function card(it) {
     const q = it.q, s = st(q);
     const fb = showFeedback(s);
-    const locked = fb;
+    const locked = fb || !!s.wrong;
     const body = [];
     if (it.section && opts.showSections !== false) body.push(h('div', { class: 'q-section' }, it.section));
     body.push(h('div', { class: 'q-meta' },
@@ -242,10 +264,20 @@ export function mountEngine(root, opts) {
       }
     }
 
+    const hintEl = s.hintOpen && !fb && q.explanation && h('div', { class: 'hint-box' }, h('div', { class: 'hb-title' }, 'Hint'), h('div', { class: 'md', html: md(q.explanation) }));
+    if (s.wrong && !fb) {
+      body.push(h('div', { class: 'feedback fb-bad', role: 'status' },
+        h('div', { class: 'fb-head' }, 'Not quite'),
+        h('div', { class: 'fb-actions' },
+          h('button', { class: 'btn small primary', type: 'button', onclick: tryAgain }, 'Try again'),
+          q.explanation && !s.hintOpen && h('button', { class: 'btn small', type: 'button', onclick: showHint }, 'Show hint'),
+          h('button', { class: 'btn small', type: 'button', onclick: giveUp }, 'Show answer'))));
+      if (hintEl) body.push(hintEl);
+    } else if (hintEl) body.push(hintEl);
     if (fb && (q.type !== 'short' || s.done)) {
       const ok = s.ok;
       const fbEl = h('div', { class: 'feedback ' + (ok ? 'fb-ok' : 'fb-bad'), role: 'status' },
-        h('div', { class: 'fb-head' }, ok ? (q.type === 'short' ? '✓ Got it' : '✓ Correct') : (q.type === 'short' ? '✗ Missed it' : '✗ Incorrect'),
+        h('div', { class: 'fb-head' }, ok ? (q.type === 'short' ? '✓ Got it' : s.tries > 1 ? `✓ Correct on try ${s.tries}` : '✓ Correct') : (q.type === 'short' ? '✗ Missed it' : '✗ Incorrect'),
           q.type === 'numeric' && !ok && h('span', { class: 'fb-ans' }, 'Answer: ', fmtAns(q))),
         q.type === 'numeric' && ok && h('div', { class: 'fb-sub' }, 'Answer: ' + fmtAns(q)),
         q.explanation && h('div', { class: 'md', html: md(q.explanation) }),
@@ -263,6 +295,7 @@ export function mountEngine(root, opts) {
     const foot = h('div', { class: 'q-foot' },
       h('button', { class: 'btn ghost', type: 'button', disabled: S.idx === 0, onclick: () => go(-1) }, 'Previous'));
     if (timed && S.phase === 'run') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? 'Review and submit' : 'Next'));
+    else if (!timed && s.wrong && !s.done) foot.append(h('button', { class: 'btn', type: 'button', onclick: next }, last ? 'Finish' : 'Next'));
     else if (!timed && !s.done && q.type !== 'short') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Check answer'));
     else if (!timed && !s.done && q.type === 'short' && !s.revealed) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Reveal answer'));
     else if (s.done || (timed && S.phase === 'review')) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? (timed ? 'Back to start' : 'Finish') : 'Next'));
@@ -271,20 +304,20 @@ export function mountEngine(root, opts) {
 
   function summary() {
     const rows = S.list.map((it, i) => ({ it, i, s: st(it.q) }));
-    const answered = rows.filter((r) => r.s.done), right = answered.filter((r) => r.s.ok).length;
+    const answered = rows.filter((r) => fin(r.s)), right = answered.filter((r) => okOf(r.s)).length;
     const pct = answered.length ? Math.round((100 * right) / answered.length) : 0;
-    const missed = rows.filter((r) => r.s.done && !r.s.ok);
-    const skipped = rows.filter((r) => !r.s.done);
+    const missed = rows.filter((r) => fin(r.s) && !okOf(r.s));
+    const skipped = rows.filter((r) => !fin(r.s));
     return h('section', { class: 'summary' },
       h('h2', null, 'Set complete'),
       h('div', { class: 'big-score' }, String(right), h('span', null, `of ${answered.length} correct (${pct}%)`)),
       skipped.length > 0 && h('p', { class: 'muted' }, `${skipped.length} question${skipped.length > 1 ? 's' : ''} not answered.`),
-      h('ul', { class: 'sum-list' }, rows.map(({ it, i, s }) => h('li', { class: s.done ? (s.ok ? 'ok' : 'bad') : 'skip' },
+      h('ul', { class: 'sum-list' }, rows.map(({ it, i, s }) => h('li', { class: fin(s) ? (okOf(s) ? 'ok' : 'bad') : 'skip' },
         h('button', { class: 'linkish', type: 'button', onclick: () => { S.phase = 'run'; S.idx = i; draw(); } },
-          h('span', { class: 'sum-n' }, String(i + 1)), h('span', { class: 'sum-mark', 'aria-hidden': 'true' }, s.done ? (s.ok ? '✓' : '✗') : '–'),
+          h('span', { class: 'sum-n' }, String(i + 1)), h('span', { class: 'sum-mark', 'aria-hidden': 'true' }, fin(s) ? (okOf(s) ? '✓' : '✗') : '–'),
           h('span', { class: 'sum-text' }, plain(it.q.prompt).slice(0, 110)))))),
       h('div', { class: 'row-actions' },
-        missed.length > 0 && h('button', { class: 'btn primary', type: 'button', onclick: () => { const ids = new Set(missed.map((r) => r.it.q.id)); S.list = S.list.filter((x) => ids.has(x.q.id)); for (const x of S.list) { const s = st(x.q); s.resp = undefined; s.done = false; s.ok = null; s.revealed = false; } S.idx = 0; S.phase = 'run'; draw(); } }, `Retry ${missed.length} missed`),
+        missed.length > 0 && h('button', { class: 'btn primary', type: 'button', onclick: () => { const ids = new Set(missed.map((r) => r.it.q.id)); S.list = S.list.filter((x) => ids.has(x.q.id)); for (const x of S.list) sess.delete(x.q.id); S.idx = 0; S.phase = 'run'; draw(); } }, `Retry ${missed.length} missed`),
         opts.again && h('button', { class: 'btn primary', type: 'button', onclick: () => { cleanup(); opts.again(); } }, 'New round'),
         h('button', { class: 'btn', type: 'button', onclick: () => { sess.clear(); rebuild(); draw(); } }, 'Restart set'),
         opts.backHref && h('a', { class: 'btn ghost', href: opts.backHref }, opts.backLabel || 'Back')));
@@ -330,7 +363,7 @@ export function mountEngine(root, opts) {
       kids.push(h('div', { class: 'empty' }, h('p', null, items.length ? 'No questions match this filter.' : 'No questions here yet.'), items.length > 0 && h('button', { class: 'btn', type: 'button', onclick: () => { S.filter = 'all'; rebuild(); draw(); } }, 'Show all')));
       fill(root, ...kids); return;
     }
-    const answeredN = S.list.filter((i) => st(i.q).done || (timed && S.phase === 'run' && hasResp(i.q, st(i.q).resp))).length;
+    const answeredN = S.list.filter((i) => fin(st(i.q)) || (timed && S.phase === 'run' && hasResp(i.q, st(i.q).resp))).length;
     kids.push(h('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': S.list.length, 'aria-valuenow': answeredN, 'aria-label': 'Progress' },
       h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })),
     h('div', { class: 'progress-label' }, `Question ${S.idx + 1} of ${S.list.length}, ${answeredN} answered`));

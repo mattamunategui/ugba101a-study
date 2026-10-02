@@ -60,7 +60,13 @@ main { outline: none; }
 .nav a.active { color: var(--text); border-bottom-color: var(--accent); }
 .pill { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
 .pill::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--bad); margin-right: 4px; vertical-align: .12em; }
-@media (max-width: 480px) { .brand span { display: none; } .topbar-in { gap: 8px; } .nav { margin-left: 0; flex: 1; justify-content: space-between; gap: 0; } .nav a { padding: 0 5px; font-size: .82rem; gap: 3px; } }
+.hist { display: flex; gap: 2px; flex: none; margin-left: -8px; }
+.hist-btn { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--muted); cursor: pointer; }
+.hist-btn:hover:not(:disabled) { color: var(--text); border-color: var(--border-strong); }
+.hist-btn:disabled { opacity: .35; cursor: default; }
+.hist-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hist-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 480px) { .hist { margin-left: -4px; gap: 0; } .hist-btn { width: 22px; } .brand span { display: none; } .topbar-in { gap: 6px; padding: 0 10px; } .nav { margin-left: 0; flex: 1; justify-content: space-between; gap: 0; } .nav a { padding: 0 3px; font-size: .8rem; gap: 3px; } }
 
 /* buttons */
 .btn { font: inherit; font-weight: 500; font-size: .95rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); border: 1px solid var(--border-strong); background: transparent; color: var(--text); cursor: pointer; text-decoration: none; min-height: 36px; }

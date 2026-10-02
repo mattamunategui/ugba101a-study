@@ -1,17 +1,17 @@
-import { HUB } from './hub.js?v=79223900bd';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=79223900bd';
-import * as store from './lib/store.js?v=79223900bd';
-import { h, applyTheme, md } from './lib/render.js?v=79223900bd';
+import { HUB } from './hub.js?v=9324167050';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=9324167050';
+import * as store from './lib/store.js?v=9324167050';
+import { h, applyTheme, md } from './lib/render.js?v=9324167050';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=79223900bd'),
-  m: () => import('./views/module.js?v=79223900bd'),
-  focus: () => import('./views/focus.js?v=79223900bd'),
-  practice: () => import('./views/practice.js?v=79223900bd'),
-  memorize: () => import('./views/memorize.js?v=79223900bd'),
-  exam: () => import('./views/exam.js?v=79223900bd'),
-  missed: () => import('./views/missed.js?v=79223900bd'),
-  settings: () => import('./views/settings.js?v=79223900bd'),
+  '': () => import('./views/home.js?v=9324167050'),
+  m: () => import('./views/module.js?v=9324167050'),
+  focus: () => import('./views/focus.js?v=9324167050'),
+  practice: () => import('./views/practice.js?v=9324167050'),
+  memorize: () => import('./views/memorize.js?v=9324167050'),
+  exam: () => import('./views/exam.js?v=9324167050'),
+  missed: () => import('./views/missed.js?v=9324167050'),
+  settings: () => import('./views/settings.js?v=9324167050'),
 };
 
 const app = document.getElementById('app');
@@ -87,10 +87,17 @@ function start() {
   app.replaceChildren();
   navEl = h('nav', { class: 'nav', 'aria-label': 'Main' });
   mainEl = h('main', { id: 'main', tabindex: '-1' });
-  app.append(...[whatsNew(course)].filter(Boolean), h('header', { class: 'topbar' }, h('div', { class: 'topbar-in' }, h('a', { class: 'brand', href: '#/' }, h('img', { src: 'icon.svg', alt: '', width: 24, height: 24 }), h('span', null, HUB.short)), navEl)), mainEl);
+  app.append(...[whatsNew(course)].filter(Boolean), h('header', { class: 'topbar' }, h('div', { class: 'topbar-in' }, histBtns(), h('a', { class: 'brand', href: '#/' }, h('img', { src: 'icon.svg', alt: '', width: 24, height: 24 }), h('span', null, HUB.short)), navEl)), mainEl);
   window.removeEventListener('hashchange', route);
   window.addEventListener('hashchange', route);
   route();
+}
+
+// Back/forward buttons (routing is hash-based, so history.back/forward move between pages)
+function histBtns() {
+  const svg = (d) => h('span', { html: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${d}"/></svg>` });
+  const b = (label, d, fn) => h('button', { class: 'hist-btn', type: 'button', 'aria-label': label, title: label, onclick: fn }, svg(d));
+  return h('div', { class: 'hist' }, b('Back', 'M10 3 5 8l5 5', () => history.back()), b('Forward', 'M6 3l5 5-5 5', () => history.forward()));
 }
 
 // ---------- "What's new" banner: shown once per update per browser ----------

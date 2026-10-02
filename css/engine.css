@@ -121,3 +121,9 @@
 .rate-row { display: flex; gap: 12px; justify-content: center; margin: 12px 0; } .rate-row .btn { min-width: 130px; }
 .box-strip { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: center; font-size: .85rem; color: var(--muted); margin-top: 8px; font-variant-numeric: tabular-nums; }
 pre.err { white-space: pre-wrap; font-size: .8rem; background: var(--surface-2); padding: 12px; border-radius: var(--radius); overflow-x: auto; }
+
+/* retry + hint on wrong answers (untimed practice) */
+.opt.elim { opacity: .55; } .opt.elim .opt-text { text-decoration: line-through; }
+.fb-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.hint-box { margin-top: 12px; padding: 10px 14px; background: var(--surface-2); border-left: 2px solid var(--border-strong); border-radius: 0 var(--radius) var(--radius) 0; }
+.hb-title { font-size: .85rem; font-weight: 500; color: var(--muted); } .hint-box .md { margin-top: 4px; }
