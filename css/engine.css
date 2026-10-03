@@ -127,3 +127,34 @@ pre.err { white-space: pre-wrap; font-size: .8rem; background: var(--surface-2);
 .fb-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .hint-box { margin-top: 12px; padding: 10px 14px; background: var(--surface-2); border-left: 2px solid var(--border-strong); border-radius: 0 var(--radius) var(--radius) 0; }
 .hb-title { font-size: .85rem; font-weight: 500; color: var(--muted); } .hint-box .md { margin-top: 4px; }
+
+/* skill categories (module practice) */
+.catpanel { margin: 0 0 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.catpanel > summary { cursor: pointer; padding: 8px 0; font-size: .9rem; font-weight: 500; color: var(--muted); }
+.cat-list { list-style: none; margin: 0; padding: 0; }
+.cat-row { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: center; padding: 10px 0 10px 10px; border-top: 1px solid var(--border); border-left: 2px solid transparent; }
+.cat-row.cur { border-left-color: var(--accent); }
+.cat-info { flex: 1 1 240px; min-width: 0; }
+.cat-title { font-weight: 500; }
+.cat-skill { font-size: .85rem; color: var(--muted); }
+.cat-prog { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.cat-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cat-row.skipped .cat-info { opacity: .55; }
+.qn-cat { flex: 0 0 100%; margin-top: 6px; font-size: .78rem; font-weight: 500; color: var(--muted); }
+.qn-cat:first-child { margin-top: 0; }
+.qn-cat.skipped, .qn.skipped { opacity: .5; }
+.q-cat { font-size: .85rem; color: var(--muted); margin-bottom: 8px; }
+.q-cat-name { font-weight: 600; color: var(--text); }
+.q-diff { margin-left: 8px; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius); font-size: .78rem; }
+
+/* progressive hints + full walkthrough (questions with a guide) */
+.hint-row { margin-top: 12px; }
+.hint-box:focus { outline: none; }
+.hb-step { margin-top: 10px; }
+.hb-next { margin-top: 10px; }
+.walk { margin-top: 10px; }
+.walk details { border-top: 1px solid var(--border); padding: 6px 0; }
+.walk summary { cursor: pointer; font-size: .9rem; font-weight: 500; }
+.walk ol { margin: 6px 0 4px; padding-left: 1.4em; }
+.walk li { margin: 4px 0; } .walk li > p { margin: 0; }
+.walk-links { list-style: none; margin: 6px 0 0; padding: 0; font-size: .9rem; }

@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=06d3f64d6b';
-import { h, fill, put } from '../lib/render.js?v=06d3f64d6b';
-import * as store from '../lib/store.js?v=06d3f64d6b';
-import { mountEngine } from './practice.js?v=06d3f64d6b';
+import { HUB } from '../hub.js?v=088fa1a897';
+import { h, fill, put } from '../lib/render.js?v=088fa1a897';
+import * as store from '../lib/store.js?v=088fa1a897';
+import { mountEngine } from './practice.js?v=088fa1a897';
 
 export function render(ctx) {
   document.title = 'Missed' + ' · ' + HUB.short;
@@ -13,5 +13,5 @@ export function render(ctx) {
       h('div', { class: 'empty' }, h('p', null, 'Nothing to retry. Questions you get wrong in modules or exams will show up here until you answer them correctly.')));
     return;
   }
-  ctx.onCleanup(mountEngine(root, { title: `Retry missed (${items.length})`, items, backHref: '#/', backLabel: 'Home' }));
+  ctx.onCleanup(mountEngine(root, { title: `Retry missed (${items.length})`, items, backHref: '#/', backLabel: 'Home', mods: ctx.mods }));
 }

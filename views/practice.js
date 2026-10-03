@@ -1,7 +1,7 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=06d3f64d6b';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=06d3f64d6b';
-import * as store from '../lib/store.js?v=06d3f64d6b';
+import { HUB } from '../hub.js?v=088fa1a897';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=088fa1a897';
+import * as store from '../lib/store.js?v=088fa1a897';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -43,14 +43,21 @@ const fmtAns = (q) => `${q.answer}${q.unit ? ' ' + q.unit : ''}${q.tolerance ? `
 
 /**
  * opts: {title, items:[{q, section?, label?}], timed?:minutes, backHref, backLabel, filters?:true,
- *        noRecord?:bool, again?:()=>items, onFinish?:fn, examId?}
+ *        noRecord?:bool, again?:()=>items, onFinish?:fn, examId?,
+ *        groups?:[{id,title,skill}] + moduleId (skill categories), mods?:Map (section headings for guide links)}
  * Returns a cleanup function.
  */
 export function mountEngine(root, opts) {
   const items = opts.items;
   const timed = !!opts.timed;
   const filtersOn = opts.filters !== false && !timed;
-  const S = { filter: 'all', order: opts.defaultOrder || 'orig', shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
+  // Skill categories (module practice only): groups from the module, untimed.
+  const cat = !timed && !!opts.moduleId && Array.isArray(opts.groups) && opts.groups.length > 0;
+  const gIds = cat ? opts.groups.map((g) => g.id) : [];
+  const gi = (it) => { const i = gIds.indexOf(it.q.group); return i < 0 ? gIds.length : i; };
+  let skipped = new Set(cat ? store.getSkipped(opts.moduleId) : []);
+  const isSkip = (it) => cat && skipped.has(it.q.group);
+  const S = { filter: 'all', order: opts.defaultOrder === 'cat' && !cat ? 'gsi' : opts.defaultOrder || 'orig', catOpen: store.get('catpanel', true) !== false, shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
   const sess = new Map();
   const redone = new Set();
   const st = (q) => {
@@ -77,11 +84,16 @@ export function mountEngine(root, opts) {
       return true;
     });
     if (S.shuffle) l = shuffle([...l]);
+    else if (S.order === 'cat' && cat) l = l.map((it, i) => [it, i]).sort((a, b) => gi(a[0]) - gi(b[0]) || (a[0].q.difficulty || 2) - (b[0].q.difficulty || 2) || a[1] - b[1]).map((x) => x[0]);
     else if (S.order === 'gsi') l = l.map((it, i) => [it, i]).sort((a, b) => (b[0].q.gsi || 0) - (a[0].q.gsi || 0) || a[1] - b[1]).map((x) => x[0]);
-    S.list = l; S.idx = 0; S.phase = 'run';
+    S.list = l; S.idx = Math.max(0, l.findIndex((it) => !isSkip(it))); S.phase = 'run';
   }
   rebuild();
-  if (!timed && !opts.noRecord) { const i = S.list.findIndex((it) => !store.getQ(it.q.id)); if (i > 0) S.idx = i; }
+  if (!timed && !opts.noRecord) {
+    const un = S.list.map((it, i) => i).filter((i) => !store.getQ(S.list[i].q.id));
+    const i = un.find((j) => !isSkip(S.list[j])) ?? un[0];
+    if (i > 0) S.idx = i;
+  }
 
   if (timed) {
     endsAt = Date.now() + opts.timed * 60000;
@@ -129,7 +141,17 @@ export function mountEngine(root, opts) {
     s.wrong = false; s.resp = undefined; draw();
     (root.querySelector('.opt:not(.elim)') || root.querySelector('.opt') || root.querySelector('#num'))?.focus();
   }
-  function showHint() { const s = st(cur().q); s.hintOpen = true; draw(); }
+  function showHint() { const s = st(cur().q); s.hintOpen = true; if (cur().q.guide) s.steps = Math.max(1, s.steps || 0); draw(); }
+  function nextStep() {
+    const q = cur().q, s = st(q); s.steps = Math.min((s.steps || 1) + 1, q.guide.steps.length); draw();
+    (root.querySelector('.hb-next') || root.querySelector('.hint-box'))?.focus();
+  }
+  function setSkip(g, on) { on ? skipped.add(g) : skipped.delete(g); store.setSkipped(opts.moduleId, [...skipped]); draw(); }
+  function startCat(g) {
+    const l = S.list.map((it, i) => i).filter((i) => S.list[i].q.group === g);
+    const i = l.find((j) => !store.getQ(S.list[j].q.id)) ?? l[0];
+    if (i != null) { S.idx = i; draw(); root.querySelector('.qcard')?.scrollIntoView({ block: 'start' }); }
+  }
   function giveUp() { const s = st(cur().q); s.wrong = false; s.done = true; s.ok = false; draw(); }
   function mark(ok) {
     const it = cur(); if (!it) return; const q = it.q, s = st(q);
@@ -138,9 +160,11 @@ export function mountEngine(root, opts) {
     if (timed && S.phase === 'review') saveExam();
     draw();
   }
-  function go(d) { const n = S.idx + d; if (n >= 0 && n < S.list.length) { S.idx = n; draw(); window.scrollTo({ top: 0 }); } }
+  // Next/Previous skip questions in categories marked "Got this, skip" (clicking a navigator box still opens one).
+  function stepIdx(d) { for (let i = S.idx + d; i >= 0 && i < S.list.length; i += d) if (!isSkip(S.list[i])) return i; return -1; }
+  function go(d) { const n = stepIdx(d); if (n >= 0) { S.idx = n; draw(); window.scrollTo({ top: 0 }); } }
   function next() {
-    if (S.idx < S.list.length - 1) go(1);
+    if (stepIdx(1) >= 0) go(1);
     else if (timed) { if (S.phase === 'run') { S.confirming = true; draw(); } else { S.idx = 0; draw(); } }
     else { S.phase = 'summary'; draw(); window.scrollTo({ top: 0 }); }
   }
@@ -205,21 +229,67 @@ export function mountEngine(root, opts) {
     const sel = h('select', { id: 'flt', 'aria-label': 'Filter questions', onchange: (e) => { S.filter = e.target.value; rebuild(); draw(); } },
       ...[['all', 'All'], ['unanswered', 'Unanswered'], ['missed', 'Missed'], ['emphasis', 'Prof emphasis'], ['gsi', HUB.focus.short + ' focus only']].map(([v, l]) => h('option', { value: v, selected: v === S.filter }, `${l} (${counts[v]})`)));
     const ord = h('select', { id: 'ord', 'aria-label': 'Question order', disabled: S.shuffle, onchange: (e) => { S.order = e.target.value; rebuild(); draw(); } },
-      ...[['orig', 'Original order'], ['gsi', HUB.focus.short + ' first']].map(([v, l]) => h('option', { value: v, selected: v === S.order }, l)));
+      ...(cat ? [['cat', 'By category (easy → hard)'], ['gsi', HUB.focus.short + ' first'], ['orig', 'Original order']] : [['orig', 'Original order'], ['gsi', HUB.focus.short + ' first']]).map(([v, l]) => h('option', { value: v, selected: v === S.order }, l)));
     return h('div', { class: 'toolbar' }, h('span', { class: 'field-group' }, h('label', { class: 'field-inline', for: 'flt' }, 'Show'), sel),
       h('span', { class: 'field-group' }, h('label', { class: 'field-inline', for: 'ord' }, 'Order'), ord),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: S.shuffle, onchange: (e) => { S.shuffle = e.target.checked; rebuild(); draw(); } }), ' Shuffle'));
   }
 
+  const catTitle = (g) => cat && opts.groups.find((x) => x.id === g)?.title;
+
+  function catPanel() {
+    const curG = cur()?.q.group;
+    const rows = opts.groups.map((g) => {
+      const qs = items.filter((it) => it.q.group === g.id);
+      if (!qs.length) return null;
+      const as = qs.map((it) => store.getQ(it.q.id)).filter(Boolean), right = as.filter((a) => a.ok).length;
+      const sk = skipped.has(g.id);
+      return h('li', { class: 'cat-row' + (sk ? ' skipped' : '') + (g.id === curG ? ' cur' : '') },
+        h('div', { class: 'cat-info' }, h('div', { class: 'cat-title' }, g.title), g.skill && h('div', { class: 'cat-skill', html: mdInline(g.skill) }),
+          h('div', { class: 'cat-prog' }, `${as.length}/${qs.length} done` + (as.length ? ` · ${right} right` : ''))),
+        h('div', { class: 'cat-actions' },
+          h('button', { class: 'btn small', type: 'button', 'aria-label': 'Start here: ' + g.title, disabled: !S.list.some((it) => it.q.group === g.id), onclick: () => startCat(g.id) }, 'Start here'),
+          h('button', { class: 'btn small ghost', type: 'button', 'aria-pressed': sk ? 'true' : 'false', 'aria-label': (sk ? 'Unskip: ' : 'Got this, skip: ') + g.title, onclick: () => setSkip(g.id, !sk) }, sk ? 'Unskip' : 'Got this, skip')));
+    }).filter(Boolean);
+    return h('details', { class: 'catpanel', open: S.catOpen, ontoggle: (e) => { S.catOpen = e.target.open; store.set('catpanel', S.catOpen); } },
+      h('summary', null, `Categories (${rows.length})`), h('ul', { class: 'cat-list' }, rows));
+  }
+
+  function hintBox(q, s) {
+    const g = q.guide, n = s.steps || 1, tot = g.steps.length;
+    return h('div', { class: 'hint-box', role: 'status', tabindex: '-1' },
+      h('div', { class: 'hb-title' }, 'Hint'),
+      g.concept && h('div', { class: 'md', html: md(g.concept) }),
+      g.steps.slice(0, n).map((t, i) => h('div', { class: 'hb-step' },
+        h('div', { class: 'hb-title' }, i === tot - 1 && tot > 1 ? 'Last step: answer' : `Step ${i + 1} of ${tot}`), h('div', { class: 'md', html: md(t) }))),
+      n < tot && h('button', { class: 'btn small hb-next', type: 'button', onclick: nextStep }, `Next step (${n + 1} of ${tot})`));
+  }
+
+  function walkthrough(q, ok) {
+    const g = q.guide;
+    const link = ({ module: m, section: sec }) => h('a', { href: `#/m/${m}?s=${sec}` }, 'Review: ' + (opts.mods?.get(m)?.sections?.find((x) => x.id === sec)?.heading || sec));
+    return h('div', { class: 'walk' },
+      g.steps?.length > 0 && h('details', { class: 'walk-steps', open: true }, h('summary', null, 'Step by step'),
+        h('ol', null, g.steps.map((t) => h('li', { html: md(t) })))),
+      g.concept && h('details', null, h('summary', null, 'What this tests'), h('div', { class: 'md', html: md(g.concept) })),
+      (g.review || g.links?.length > 0) && h('details', { open: !ok }, h('summary', null, 'To strengthen this'),
+        g.review && h('div', { class: 'md', html: md(g.review) }),
+        g.links?.length > 0 && h('ul', { class: 'walk-links' }, g.links.map((l) => h('li', null, link(l))))));
+  }
+
   function navigator() {
+    const grouped = cat && S.order === 'cat' && !S.shuffle;
     return h('nav', { class: 'qnav', 'aria-label': 'Question navigator' }, S.list.map((it, i) => {
       const s = st(it.q);
       let c = 'qn';
+      if (isSkip(it)) c += ' skipped';
       if (i === S.idx) c += ' current';
       if (s.wrong && !s.done) c += ' bad';
       else if (showFeedback(s)) { const o = okOf(s); c += o === null ? ' answered' : o ? ' ok' : ' bad'; }
       else if (timed && hasResp(it.q, s.resp)) c += ' answered';
-      return h('button', { class: c, type: 'button', 'aria-label': `Question ${i + 1}`, 'aria-current': i === S.idx ? 'true' : null, onclick: () => { S.idx = i; draw(); } }, String(i + 1));
+      const btn = h('button', { class: c, type: 'button', 'aria-label': `Question ${i + 1}${isSkip(it) ? ' (skipped category)' : ''}`, 'aria-current': i === S.idx ? 'true' : null, onclick: () => { S.idx = i; draw(); } }, String(i + 1));
+      if (!grouped || (i > 0 && S.list[i - 1].q.group === it.q.group)) return btn;
+      return [h('span', { class: 'qn-cat' + (isSkip(it) ? ' skipped' : '') }, catTitle(it.q.group) || 'Other'), btn];
     }));
   }
 
@@ -249,6 +319,10 @@ export function mountEngine(root, opts) {
     const locked = fb || !!s.wrong;
     const body = [];
     if (it.section && opts.showSections !== false) body.push(h('div', { class: 'q-section' }, it.section));
+    if (cat && q.group && catTitle(q.group)) {
+      const same = S.list.filter((x) => x.q.group === q.group);
+      body.push(h('div', { class: 'q-cat' }, h('span', { class: 'q-cat-name' }, catTitle(q.group)), ` · Question ${same.indexOf(it) + 1} of ${same.length} in this category`, q.difficulty && h('span', { class: 'q-diff' }, DIFF[q.difficulty])));
+    }
     body.push(h('div', { class: 'q-meta' },
       h('span', { class: 'q-type' }, { mcq: 'Multiple choice', tf: 'True or false', multi: 'Select all that apply', numeric: 'Numeric', short: 'Short answer' }[q.type]),
       q.gsi && h('span', { class: 'tag-focus', title: HUB.focus.label + ': ' + GSI_LEVEL[q.gsi] }, HUB.focus.short),
@@ -276,13 +350,15 @@ export function mountEngine(root, opts) {
       }
     }
 
-    const hintEl = s.hintOpen && !fb && q.explanation && h('div', { class: 'hint-box' }, h('div', { class: 'hb-title' }, 'Hint'), h('div', { class: 'md', html: md(q.explanation) }));
+    const hintEl = s.hintOpen && !fb && (q.guide ? hintBox(q, s) : q.explanation && h('div', { class: 'hint-box' }, h('div', { class: 'hb-title' }, 'Hint'), h('div', { class: 'md', html: md(q.explanation) })));
+    const canHint = !!(q.guide || q.explanation);
+    if (q.guide && !timed && !fb && !s.wrong && !s.hintOpen && !(q.type === 'short' && s.revealed)) body.push(h('div', { class: 'hint-row' }, h('button', { class: 'btn small', type: 'button', onclick: showHint }, 'Show hint')));
     if (s.wrong && !fb) {
       body.push(h('div', { class: 'feedback fb-bad', role: 'status' },
         h('div', { class: 'fb-head' }, 'Not quite'),
         h('div', { class: 'fb-actions' },
           h('button', { class: 'btn small primary', type: 'button', onclick: tryAgain }, 'Try again'),
-          q.explanation && !s.hintOpen && h('button', { class: 'btn small', type: 'button', onclick: showHint }, 'Show hint'),
+          canHint && !s.hintOpen && h('button', { class: 'btn small', type: 'button', onclick: showHint }, 'Show hint'),
           h('button', { class: 'btn small', type: 'button', onclick: giveUp }, 'Show answer'))));
       if (hintEl) body.push(hintEl);
     } else if (hintEl) body.push(hintEl);
@@ -293,6 +369,7 @@ export function mountEngine(root, opts) {
           q.type === 'numeric' && !ok && h('span', { class: 'fb-ans' }, 'Answer: ', fmtAns(q))),
         q.type === 'numeric' && ok && h('div', { class: 'fb-sub' }, 'Answer: ' + fmtAns(q)),
         q.explanation && h('div', { class: 'md', html: md(q.explanation) }),
+        q.guide && walkthrough(q, ok),
         h('div', { class: 'fb-tags' },
           q.source && h('span', null, 'Source: ' + q.source),
           q.emphasis && h('span', { class: 'emph' }, 'Professor emphasis'),
@@ -303,9 +380,9 @@ export function mountEngine(root, opts) {
     if (timed && S.phase === 'review' && q.type === 'short' && !s.done) { /* self-mark shown above */ }
 
     // footer controls
-    const last = S.idx === S.list.length - 1;
+    const last = stepIdx(1) < 0;
     const foot = h('div', { class: 'q-foot' },
-      h('button', { class: 'btn ghost', type: 'button', disabled: S.idx === 0, onclick: () => go(-1) }, 'Previous'));
+      h('button', { class: 'btn ghost', type: 'button', disabled: stepIdx(-1) < 0, onclick: () => go(-1) }, 'Previous'));
     if (timed && S.phase === 'run') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? 'Review and submit' : 'Next'));
     else if (!timed && s.wrong && !s.done) foot.append(h('button', { class: 'btn', type: 'button', onclick: next }, last ? 'Finish' : 'Next'));
     else if (!timed && !s.done && q.type !== 'short') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Check answer'));
@@ -320,14 +397,16 @@ export function mountEngine(root, opts) {
     const answered = rows.filter((r) => fin(r.s)), right = answered.filter((r) => okOf(r.s)).length;
     const pct = answered.length ? Math.round((100 * right) / answered.length) : 0;
     const missed = rows.filter((r) => fin(r.s) && !okOf(r.s));
-    const skipped = rows.filter((r) => !fin(r.s));
+    const skippedCat = rows.filter((r) => !fin(r.s) && isSkip(r.it));
+    const skipped = rows.filter((r) => !fin(r.s) && !isSkip(r.it));
     return h('section', { class: 'summary' },
       h('h2', null, 'Set complete'),
       h('div', { class: 'big-score' }, String(right), h('span', null, `of ${answered.length} correct (${pct}%)`)),
       skipped.length > 0 && h('p', { class: 'muted' }, `${skipped.length} question${skipped.length > 1 ? 's' : ''} not answered.`),
+      skippedCat.length > 0 && h('p', { class: 'muted' }, `${skippedCat.length} in categories you marked “Got this, skip”.`),
       h('ul', { class: 'sum-list' }, rows.map(({ it, i, s }) => h('li', { class: fin(s) ? (okOf(s) ? 'ok' : 'bad') : 'skip' },
         h('button', { class: 'linkish', type: 'button', onclick: () => { S.phase = 'run'; S.idx = i; draw(); } },
-          h('span', { class: 'sum-n' }, String(i + 1)), h('span', { class: 'sum-mark', 'aria-hidden': 'true' }, fin(s) ? (okOf(s) ? '✓' : '✗') : '–'),
+          h('span', { class: 'sum-n' }, String(i + 1)), h('span', { class: 'sum-mark', 'aria-hidden': 'true' }, fin(s) ? (okOf(s) ? '✓' : '✗') : isSkip(it) ? '»' : '–'),
           h('span', { class: 'sum-text' }, plain(it.q.prompt).slice(0, 110)))))),
       h('div', { class: 'row-actions' },
         missed.length > 0 && h('button', { class: 'btn primary', type: 'button', onclick: () => { const ids = new Set(missed.map((r) => r.it.q.id)); S.list = S.list.filter((x) => ids.has(x.q.id)); for (const x of S.list) sess.delete(x.q.id); S.idx = 0; S.phase = 'run'; draw(); } }, `Retry ${missed.length} missed`),
@@ -371,6 +450,7 @@ export function mountEngine(root, opts) {
       if (S.phase === 'review') kids.push(reviewSummary());
     } else {
       kids.push(toolbar());
+      if (cat) kids.push(catPanel());
     }
     if (!S.list.length) {
       kids.push(h('div', { class: 'empty' }, h('p', null, items.length ? 'No questions match this filter.' : 'No questions here yet.'), items.length > 0 && h('button', { class: 'btn', type: 'button', onclick: () => { S.filter = 'all'; rebuild(); draw(); } }, 'Show all')));
@@ -402,5 +482,6 @@ export function render(ctx) {
   const items = (mod.questions || []).map((q) => ({ q }));
   const root = h('div', { class: 'wrap engine' });
   ctx.root.append(root);
-  ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/m/' + id, backLabel: 'Module', defaultOrder: 'gsi' }));
+  const hasGroups = Array.isArray(mod.groups) && mod.groups.length > 0;
+  ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/m/' + id, backLabel: 'Module', defaultOrder: hasGroups ? 'cat' : 'gsi', groups: mod.groups, moduleId: id, mods: ctx.mods }));
 }
