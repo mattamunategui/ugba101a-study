@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=9324167050';
-import { h, mdInline, fill, put } from '../lib/render.js?v=9324167050';
-import * as store from '../lib/store.js?v=9324167050';
-import { lectureLabel, scoreText } from './module.js?v=9324167050';
+import { HUB } from '../hub.js?v=06d3f64d6b';
+import { h, mdInline, fill, put } from '../lib/render.js?v=06d3f64d6b';
+import * as store from '../lib/store.js?v=06d3f64d6b';
+import { lectureLabel, scoreText } from './module.js?v=06d3f64d6b';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 

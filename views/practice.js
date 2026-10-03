@@ -1,7 +1,7 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=9324167050';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=9324167050';
-import * as store from '../lib/store.js?v=9324167050';
+import { HUB } from '../hub.js?v=06d3f64d6b';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=06d3f64d6b';
+import * as store from '../lib/store.js?v=06d3f64d6b';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -52,9 +52,20 @@ export function mountEngine(root, opts) {
   const filtersOn = opts.filters !== false && !timed;
   const S = { filter: 'all', order: opts.defaultOrder || 'orig', shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
   const sess = new Map();
-  const st = (q) => { if (!sess.has(q.id)) sess.set(q.id, { resp: undefined, revealed: false, done: false, ok: null }); return sess.get(q.id); };
+  const redone = new Set();
+  const st = (q) => {
+    if (!sess.has(q.id)) {
+      // Restore what was answered in an earlier visit, as if the session never ended.
+      const a = !timed && !opts.noRecord && !redone.has(q.id) && store.getQ(q.id);
+      sess.set(q.id, a
+        ? { resp: a.r !== undefined ? a.r : q.type === 'short' ? (a.ok ? 'got' : 'missed') : undefined, revealed: true, done: true, ok: a.ok, firstOk: a.ok, tries: 1, restored: true }
+        : { resp: undefined, revealed: false, done: false, ok: null });
+    }
+    return sess.get(q.id);
+  };
+  function redo() { const q = cur().q; redone.add(q.id); sess.delete(q.id); draw(); }
   let timerId = null, endsAt = 0, timerEl = null;
-  const record = (q, ok) => { if (!opts.noRecord && ok != null) store.recordAnswer(q.id, ok); };
+  const record = (q, ok, resp) => { if (!opts.noRecord && ok != null) store.recordAnswer(q.id, ok, resp); };
 
   function rebuild() {
     let l = items.filter((it) => {
@@ -70,6 +81,7 @@ export function mountEngine(root, opts) {
     S.list = l; S.idx = 0; S.phase = 'run';
   }
   rebuild();
+  if (!timed && !opts.noRecord) { const i = S.list.findIndex((it) => !store.getQ(it.q.id)); if (i > 0) S.idx = i; }
 
   if (timed) {
     endsAt = Date.now() + opts.timed * 60000;
@@ -106,7 +118,7 @@ export function mountEngine(root, opts) {
     s.hint = null;
     const ok = grade(q, s.resp);
     s.tries = (s.tries || 0) + 1;
-    if (s.tries === 1) { s.firstOk = ok; record(q, ok); } // only the first attempt is recorded
+    if (s.tries === 1) { s.firstOk = ok; record(q, ok, s.resp); } // only the first attempt is recorded
     if (ok) { s.ok = true; s.done = true; } else s.wrong = true;
     draw();
   }
@@ -299,6 +311,7 @@ export function mountEngine(root, opts) {
     else if (!timed && !s.done && q.type !== 'short') foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Check answer'));
     else if (!timed && !s.done && q.type === 'short' && !s.revealed) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Reveal answer'));
     else if (s.done || (timed && S.phase === 'review')) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? (timed ? 'Back to start' : 'Finish') : 'Next'));
+    if (s.restored && !timed) foot.append(h('button', { class: 'btn ghost', type: 'button', onclick: redo }, 'Redo this question'));
     return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot, !timed && h('div', { class: 'kbd-hint' }, 'Keys: 1 to 5 choose, Enter checks or advances, arrow keys move'));
   }
 
