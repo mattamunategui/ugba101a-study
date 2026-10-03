@@ -118,13 +118,11 @@ main { outline: none; }
 
 @media (max-width: 520px) {
   .wrap { padding-top: 16px; }
-  .qcard { padding: 16px; } .flashcard { padding: 22px 16px; }
+  .qcard { padding: 16px; }
   .num-input { width: 100%; }
   .sec-head { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 .res-video { max-width: 520px; }
 .res-video:has(.yt-frame) { max-width: none; }
-.fc-face.back .fc-text ul, .fc-face.back .fc-text ol { display: inline-block; text-align: left; margin: 4px auto; padding-left: 1.2em; }
-.fc-face.back .fc-text table { margin: 6px auto; text-align: left; }
 textarea.wide-input { min-height: 76px; resize: vertical; padding: 10px 12px; line-height: 1.4; }

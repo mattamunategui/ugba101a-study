@@ -1,21 +1,21 @@
-import { HUB } from './hub.js?v=d6ef77bfd4';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=d6ef77bfd4';
-import * as store from './lib/store.js?v=d6ef77bfd4';
-import { h, applyTheme, md } from './lib/render.js?v=d6ef77bfd4';
+import { HUB } from './hub.js?v=7dec8aab15';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=7dec8aab15';
+import * as store from './lib/store.js?v=7dec8aab15';
+import { h, applyTheme, md } from './lib/render.js?v=7dec8aab15';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=d6ef77bfd4'),
-  m: () => import('./views/module.js?v=d6ef77bfd4'),
-  focus: () => import('./views/focus.js?v=d6ef77bfd4'),
-  practice: () => import('./views/practice.js?v=d6ef77bfd4'),
-  memorize: () => import('./views/memorize.js?v=d6ef77bfd4'),
-  exam: () => import('./views/exam.js?v=d6ef77bfd4'),
-  missed: () => import('./views/missed.js?v=d6ef77bfd4'),
-  settings: () => import('./views/settings.js?v=d6ef77bfd4'),
+  '': () => import('./views/home.js?v=7dec8aab15'),
+  m: () => import('./views/module.js?v=7dec8aab15'),
+  focus: () => import('./views/focus.js?v=7dec8aab15'),
+  practice: () => import('./views/practice.js?v=7dec8aab15'),
+  memorize: () => import('./views/memorize.js?v=7dec8aab15'),
+  exam: () => import('./views/exam.js?v=7dec8aab15'),
+  missed: () => import('./views/missed.js?v=7dec8aab15'),
+  settings: () => import('./views/settings.js?v=7dec8aab15'),
 };
 
 const app = document.getElementById('app');
-let bundle = null, ctxBase = null, cleanups = [], navEl = null, mainEl = null, routeSeq = 0;
+let typedName = '', bundle = null, ctxBase = null, cleanups = [], navEl = null, mainEl = null, routeSeq = 0;
 
 applyTheme(store.get('theme', 'auto'));
 window.addEventListener('hub:progress', () => refreshNav());
@@ -27,30 +27,73 @@ function showGate(message = '', busy = false) {
   document.title = HUB.name;
   const input = h('input', { id: 'pass', type: 'password', autocomplete: 'current-password', placeholder: 'Passcode', 'aria-label': 'Passcode', required: true, autofocus: true, disabled: busy });
   const err = h('div', { class: 'gate-err', role: 'alert' }, message);
+  const nameIn = HUB.askName && nameInput(typedName || store.getName() || '');
   const btn = h('button', { class: 'btn primary block', type: 'submit', disabled: busy }, busy ? 'Unlocking…' : 'Unlock');
   const form = h('form', { class: 'gate-card', onsubmit: async (e) => {
     e.preventDefault();
     const p = input.value;
+    let name = null;
+    if (nameIn) {
+      name = nameIn.value.trim();
+      typedName = name;
+      if (!name) { err.textContent = 'Please enter your name.'; nameIn.focus(); return; }
+    }
     if (!p) return;
     input.disabled = true; btn.disabled = true; btn.textContent = 'Unlocking…'; err.textContent = '';
     form.classList.add('loading');
-    await tryUnlock(p, true);
+    await tryUnlock(p, true, name);
   } },
   h('h1', null, HUB.name),
   h('p', { class: 'muted' }, 'Enter the passcode to open the hub.'),
-  h('label', { class: 'sr-only', for: 'pass' }, 'Passcode'), input, btn, err,
+  nameIn, h('label', { class: 'sr-only', for: 'pass' }, 'Passcode'), input, btn, err,
   h('div', { class: 'spinner', 'aria-hidden': 'true' }));
   if (busy) form.classList.add('loading');
   app.append(h('main', { class: 'gate' }, form));
-  if (!busy) input.focus();
+  if (!busy) (nameIn && !nameIn.value ? nameIn : input).focus();
 }
 
-async function tryUnlock(passcode, fromForm) {
+function nameInput(value) {
+  return h('input', { id: 'name', type: 'text', autocomplete: 'name', placeholder: 'Full name', 'aria-label': 'Full name', maxlength: 80, required: true, value });
+}
+
+// Saved-passcode visitors never see the gate, so ask for the name once before opening the hub.
+function askNameOnce() {
+  document.title = HUB.name;
+  const input = nameInput('');
+  const err = h('div', { class: 'gate-err', role: 'alert' });
+  const form = h('form', { class: 'gate-card', onsubmit: (e) => {
+    e.preventDefault();
+    const name = input.value.trim();
+    if (!name) { err.textContent = 'Please enter your name.'; return; }
+    store.setName(name);
+    openHub();
+  } }, h('h1', null, "What's your name?"), input, h('button', { class: 'btn primary block', type: 'submit' }, 'Continue'), err);
+  app.replaceChildren(h('main', { class: 'gate' }, form));
+  input.focus();
+}
+
+function openHub() {
+  start();
+  logActivity();
+}
+
+// First unlock per browser: tell the owner's Google Form who this is. Fire-and-forget; never blocks the hub.
+function logActivity() {
+  const a = bundle && bundle.activity, name = store.getName();
+  if (!a || !name || store.get('activity-logged', false)) return;
+  try {
+    fetch(a.formAction, { method: 'POST', mode: 'no-cors', body: new URLSearchParams({ [a.nameEntry]: name }) })
+      .then(() => store.set('activity-logged', true), () => { /* offline: retry next visit */ });
+  } catch { /* ignore */ }
+}
+
+async function tryUnlock(passcode, fromForm, name = null) {
   try {
     const b = await unlock(passcode);
     store.setPass(passcode);
+    if (name) store.setName(name);
     bundle = b;
-    start();
+    if (HUB.askName && !store.getName()) askNameOnce(); else openHub();
   } catch (e) {
     if (e instanceof WrongPasscode) {
       if (!fromForm) store.clearPass();

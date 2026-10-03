@@ -8,5 +8,6 @@ export const HUB = {
   "label": "Mock-exam focus",
   "short": "Mock",
   "blurb": "What the prof's Fall 2026 mock exam tests, ranked by how likely it is on Midterm 1 (the real exam is the same format, just longer). Start at the top."
- }
+ },
+ "askName": false
 };
