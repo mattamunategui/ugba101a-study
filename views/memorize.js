@@ -1,6 +1,6 @@
-import { HUB } from '../hub.js?v=7dec8aab15';
-import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=7dec8aab15';
-import * as store from '../lib/store.js?v=7dec8aab15';
+import { HUB } from '../hub.js?v=3a6caad547';
+import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=3a6caad547';
+import * as store from '../lib/store.js?v=3a6caad547';
 
 const FIELD_NAMES = { three: '3-letter code', one: '1-letter code', cls: 'class', class: 'class', group: 'category', doubleBonds: 'number of double bonds', notation: 'C:DB notation', pKaR: 'side-chain pKa', figure: 'structure' };
 const ID_KEYS = ['name', 'title', 'topic', 'term', 'item'];
@@ -60,6 +60,7 @@ export function render(ctx) {
   if (mode === 'flash') return flash(ctx, root, deck, cards, false, { picker: true });
   if (mode === 'match' && attrsOf(deck).length > 1) return match(ctx, root, deck, cards);
   if (mode === 'groups' && deck.sets?.length) return groups(ctx, root, deck, cards);
+  if (mode === 'learn') return learn(ctx, root, deck, cards);
   if (mode === 'type') return typein(ctx, root, deck, cards);
   put(root, h('p', null, 'Unknown mode.'));
 }
@@ -114,7 +115,7 @@ function deckHome(ctx, root, deck, cards) {
   const dist = [0, 0, 0, 0, 0, 0]; let fresh = 0; const now = Date.now(); let due = 0;
   for (const c of cards) { const s = store.getCard(c.id); if (!s) { fresh++; due++; } else { dist[s.b]++; if (s.due <= now) due++; } }
   const max = Math.max(1, ...dist.slice(1), fresh);
-  const modes = [['flash', 'Flashcards', `${due} due. Pick the right answer from 4 choices.`],
+  const modes = [['learn', 'Learn', 'Browse every card with all its attributes, as cards or a table.'], ['flash', 'Flashcards', `${due} due. Pick the right answer from 4 choices.`],
     attrsOf(deck).length > 1 && ['match', 'Match attributes', 'Choose a question and an answer attribute, e.g. 1-letter code to structure.'],
     deck.sets?.length && ['groups', 'Groups', `${deck.sets.length} sets. Tap every item that fits a characteristic.`],
     ['type', 'Type-in', 'Type the answer from memory.']].filter(Boolean);
@@ -389,6 +390,34 @@ function groups(ctx, root, deck, cards) {
     focusSoon(grid, '.gt');
   }
   menu();
+}
+
+// ---------- Learn: every card with all its attributes ----------
+function learn(ctx, root, deck, cards) {
+  const at = attrsOf(deck, false), sets = deck.sets || [], hasFig = at.some((a) => a.id === FIG);
+  const cols = at.filter((a) => a.id !== FIG && a.id !== idKey(cards[0], deck));
+  const title = (c) => (at.length ? ident(c, deck) : plain(c.front));
+  const fig = (c) => hasFig && c.figure && figureEl(bare(c.figure), { small: true });
+  const cell = (c, a) => h('span', { html: mdInline(String(c.fields?.[a.id] ?? '—')) });
+  const inSets = (c) => { const m = sets.filter((s) => s.members.includes(c.id)); return m.length > 0 && h('div', { class: 'ln-sets' }, m.map((s) => h('span', { class: 'ln-chip' }, s.title))); };
+  const note = (c) => c.fields?.note && h('p', { class: 'muted ln-note', html: mdInline(c.fields.note) });
+  const card = (c) => h('article', { class: 'gcard lcard' }, fig(c), h('h3', { class: 'rr-title' }, title(c)),
+    at.length ? h('dl', { class: 'ln-dl' }, cols.map((a) => [h('dt', null, a.label), h('dd', null, cell(c, a))])) : h('div', { class: 'md', html: md(c.back) }),
+    note(c), inSets(c));
+  const table = () => h('div', { class: 'ln-tablewrap' }, h('table', { class: 'ln-table' },
+    h('thead', null, h('tr', null, hasFig && h('th', null, 'Structure'), h('th', null, at.length ? 'Name' : 'Front'), at.length ? cols.map((a) => h('th', null, a.label)) : h('th', null, 'Back'), sets.length > 0 && h('th', null, 'Characteristics'))),
+    h('tbody', null, cards.map((c) => h('tr', null, hasFig && h('td', null, fig(c)), h('th', { scope: 'row' }, title(c)),
+      at.length ? cols.map((a) => h('td', null, cell(c, a))) : h('td', { class: 'md', html: md(c.back) }), sets.length > 0 && h('td', null, inSets(c)))))));
+  const body = h('div');
+  let view = store.get('memlearn', 'cards') === 'table' ? 'table' : 'cards';
+  const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'View' }, h('span', { class: 'chips-l' }, 'View:'),
+    ['cards', 'table'].map((v) => h('button', { class: 'chip' + (v === view ? ' on' : ''), type: 'button', 'aria-pressed': String(v === view), 'data-v': v, onclick: () => { view = v; store.set('memlearn', v); paint(); } }, v === 'cards' ? 'Cards' : 'Table')));
+  function paint() {
+    chips.querySelectorAll('.chip').forEach((b) => { b.classList.toggle('on', b.dataset.v === view); b.setAttribute('aria-pressed', String(b.dataset.v === view)); });
+    body.replaceChildren(view === 'table' ? table() : h('div', { class: 'cgrid lgrid' }, cards.map(card)));
+  }
+  put(root, headEl('#/memorize/' + deck.id, deck.title, 'Learn'), h('p', { class: 'muted' }, `${cards.length} card${cards.length === 1 ? '' : 's'}. Study them here, then test yourself with Flashcards, Match or Groups.`), chips, body);
+  paint();
 }
 
 // ---------- Type-in ----------
