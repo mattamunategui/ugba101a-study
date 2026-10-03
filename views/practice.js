@@ -1,7 +1,7 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=088fa1a897';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=088fa1a897';
-import * as store from '../lib/store.js?v=088fa1a897';
+import { HUB } from '../hub.js?v=d6ef77bfd4';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=d6ef77bfd4';
+import * as store from '../lib/store.js?v=d6ef77bfd4';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -144,7 +144,6 @@ export function mountEngine(root, opts) {
   function showHint() { const s = st(cur().q); s.hintOpen = true; if (cur().q.guide) s.steps = Math.max(1, s.steps || 0); draw(); }
   function nextStep() {
     const q = cur().q, s = st(q); s.steps = Math.min((s.steps || 1) + 1, q.guide.steps.length); draw();
-    (root.querySelector('.hb-next') || root.querySelector('.hint-box'))?.focus();
   }
   function setSkip(g, on) { on ? skipped.add(g) : skipped.delete(g); store.setSkipped(opts.moduleId, [...skipped]); draw(); }
   function startCat(g) {
@@ -193,6 +192,16 @@ export function mountEngine(root, opts) {
   }
   function saveExam() { if (opts.examId) { const sc = score(); store.setExamResult(opts.examId, { score: sc.right, total: sc.total, timed: true }); } }
 
+  // Put the cursor in the answer box after every redraw, so you can type and press Enter without the mouse.
+  // Never takes focus away from another text field or dropdown the user is in.
+  function autoFocus(el) {
+    if (opts.focusNum === false) return;
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (el.isConnected && !el.disabled && (a === document.body || (root.contains(a) && !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))) el.focus();
+    }, 0);
+  }
+
   // ---- keyboard ----
   function onKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey || !root.isConnected) return;
@@ -202,7 +211,7 @@ export function mountEngine(root, opts) {
     const it = cur(); if (!it || S.phase === 'summary') return;
     const q = it.q, s = st(q);
     if (e.key === 'Enter') {
-      if (tag === 'TEXTAREA') return;
+      if (tag === 'TEXTAREA') { if (e.shiftKey || timed) return; e.preventDefault(); if (!s.revealed) submit(); return; }
       if ((tag === 'BUTTON' && !t.classList.contains('opt')) || tag === 'A' || tag === 'SELECT' || tag === 'SUMMARY') return;
       e.preventDefault();
       if (timed && S.phase === 'run') next();
@@ -336,12 +345,13 @@ export function mountEngine(root, opts) {
       input.addEventListener('input', () => { s.resp = input.value; if (s.hint) { s.hint = null; card_hint.textContent = ''; } });
       const card_hint = h('div', { class: 'hint', role: 'status' }, s.hint || '');
       body.push(h('div', { class: 'num-row' }, input, q.unit && h('span', { class: 'unit' }, q.unit)), card_hint);
-      if (opts.focusNum !== false && !locked) setTimeout(() => { if (document.activeElement === document.body) input.focus(); }, 0);
+      if (!locked) autoFocus(input);
     } else if (q.type === 'short') {
       const ta = h('textarea', { class: 'short-input', rows: 3, placeholder: 'Write your answer here (optional, for yourself)…', 'aria-label': 'Your answer', disabled: s.revealed });
       ta.value = s.draft || '';
       ta.addEventListener('input', () => { s.draft = ta.value; });
       body.push(ta);
+      if (!s.revealed) autoFocus(ta);
       if (s.revealed) {
         body.push(h('div', { class: 'model-answer' }, h('div', { class: 'ma-title' }, 'Model answer'), h('div', { class: 'md', html: md(q.answer) })));
         if (!s.done) body.push(h('div', { class: 'selfmark' }, h('span', null, 'How did you do?'),
@@ -389,7 +399,7 @@ export function mountEngine(root, opts) {
     else if (!timed && !s.done && q.type === 'short' && !s.revealed) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Reveal answer'));
     else if (s.done || (timed && S.phase === 'review')) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? (timed ? 'Back to start' : 'Finish') : 'Next'));
     if (s.restored && !timed) foot.append(h('button', { class: 'btn ghost', type: 'button', onclick: redo }, 'Redo this question'));
-    return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot, !timed && h('div', { class: 'kbd-hint' }, 'Keys: 1 to 5 choose, Enter checks or advances, arrow keys move'));
+    return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot, !timed && h('div', { class: 'kbd-hint' }, q.type === 'numeric' ? 'Keys: type your answer, Enter checks, Enter again for the next question; arrow keys move' : q.type === 'short' ? 'Keys: type, then Enter reveals the answer (Shift+Enter for a new line); 1 = got it, 2 = missed; Enter for the next question' : 'Keys: 1 to 5 choose, Enter checks or advances, arrow keys move'));
   }
 
   function summary() {
