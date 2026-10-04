@@ -1,17 +1,18 @@
-import { HUB } from './hub.js?v=3a6caad547';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=3a6caad547';
-import * as store from './lib/store.js?v=3a6caad547';
-import { h, applyTheme, md } from './lib/render.js?v=3a6caad547';
+import { HUB } from './hub.js?v=16e7de0477';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=16e7de0477';
+import * as store from './lib/store.js?v=16e7de0477';
+import { h, applyTheme, md } from './lib/render.js?v=16e7de0477';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=3a6caad547'),
-  m: () => import('./views/module.js?v=3a6caad547'),
-  focus: () => import('./views/focus.js?v=3a6caad547'),
-  practice: () => import('./views/practice.js?v=3a6caad547'),
-  memorize: () => import('./views/memorize.js?v=3a6caad547'),
-  exam: () => import('./views/exam.js?v=3a6caad547'),
-  missed: () => import('./views/missed.js?v=3a6caad547'),
-  settings: () => import('./views/settings.js?v=3a6caad547'),
+  '': () => import('./views/home.js?v=16e7de0477'),
+  m: () => import('./views/module.js?v=16e7de0477'),
+  focus: () => import('./views/focus.js?v=16e7de0477'),
+  max: () => import('./views/playbook.js?v=16e7de0477'),
+  practice: () => import('./views/practice.js?v=16e7de0477'),
+  memorize: () => import('./views/memorize.js?v=16e7de0477'),
+  exam: () => import('./views/exam.js?v=16e7de0477'),
+  missed: () => import('./views/missed.js?v=16e7de0477'),
+  settings: () => import('./views/settings.js?v=16e7de0477'),
 };
 
 const app = document.getElementById('app');
@@ -166,12 +167,13 @@ function refreshNav() {
   if (!navEl || !bundle) return;
   const seg = location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
   const missed = store.missedItems(bundle).length;
-  // `short` is the label shown on phones so all six items fit without scrolling
+  // `short` is the label shown on phones so all seven items fit without scrolling
   const link = (href, text, key, extra, short) => h('a', { href, class: (seg === key ? 'active' : '') + (key === '' ? ' nav-home' : ''), 'aria-current': seg === key ? 'page' : null, 'aria-label': text },
     h('span', { class: 'nl-full' }, text), h('span', { class: 'nl-short', 'aria-hidden': 'true' }, short || text), extra);
   navEl.replaceChildren(
     link('#/', 'Home', ''),
     link('#/focus', 'Exam Focus', 'focus', null, 'Focus'),
+    link('#/max', 'Efficiencymaxxing', 'max', null, 'Maxx'),
     link('#/memorize', 'Memorize', 'memorize', null, 'Cards'),
     link('#/exam', 'Exams', 'exam'),
     link('#/missed', 'Missed', 'missed', missed ? h('span', { class: 'pill' }, String(missed)) : null),

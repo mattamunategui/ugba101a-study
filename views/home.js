@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=3a6caad547';
-import { h, mdInline, fill, put } from '../lib/render.js?v=3a6caad547';
-import * as store from '../lib/store.js?v=3a6caad547';
-import { lectureLabel, scoreText } from './module.js?v=3a6caad547';
+import { HUB } from '../hub.js?v=16e7de0477';
+import { h, mdInline, fill, put } from '../lib/render.js?v=16e7de0477';
+import * as store from '../lib/store.js?v=16e7de0477';
+import { lectureLabel, scoreText } from './module.js?v=16e7de0477';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -57,6 +57,7 @@ export function render(ctx) {
     const link = (href, title, count, on = true) => on ? h('a', { href }, title, count && h('span', null, ' ' + count)) : h('span', { class: 'off' }, title, count && h('span', null, ' ' + count));
     kids.push(h('nav', { class: 'quick', 'aria-label': 'Study tools' },
       gsiTopics.length > 0 && link('#/focus', HUB.focus.label, `${gsiTopics.filter((t) => gsiDone.has(t.id)).length} of ${gsiTopics.length} done`),
+      link('#/max', 'Efficiencymaxxing', null, (ctx.bundle.playbook || []).some((f) => f.part === part.id)),
       link('#/memorize', 'Memorize', `${cardsN} cards`, decks.length > 0),
       link('#/exam', 'Exam practice', `${exams.length} set${exams.length === 1 ? '' : 's'}`, exams.length > 0),
       link('#/missed', 'Retry missed', String(missed), missed > 0)));
