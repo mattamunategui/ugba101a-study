@@ -1,18 +1,19 @@
-import { HUB } from './hub.js?v=6f7658f99f';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=6f7658f99f';
-import * as store from './lib/store.js?v=6f7658f99f';
-import { h, applyTheme, md } from './lib/render.js?v=6f7658f99f';
+import { HUB } from './hub.js?v=0ff919c245';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=0ff919c245';
+import * as store from './lib/store.js?v=0ff919c245';
+import { h, applyTheme, md } from './lib/render.js?v=0ff919c245';
+import { mountChat, unmountChat } from './lib/chat.js?v=0ff919c245';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=6f7658f99f'),
-  m: () => import('./views/module.js?v=6f7658f99f'),
-  focus: () => import('./views/focus.js?v=6f7658f99f'),
-  max: () => import('./views/playbook.js?v=6f7658f99f'),
-  practice: () => import('./views/practice.js?v=6f7658f99f'),
-  memorize: () => import('./views/memorize.js?v=6f7658f99f'),
-  exam: () => import('./views/exam.js?v=6f7658f99f'),
-  missed: () => import('./views/missed.js?v=6f7658f99f'),
-  settings: () => import('./views/settings.js?v=6f7658f99f'),
+  '': () => import('./views/home.js?v=0ff919c245'),
+  m: () => import('./views/module.js?v=0ff919c245'),
+  focus: () => import('./views/focus.js?v=0ff919c245'),
+  max: () => import('./views/playbook.js?v=0ff919c245'),
+  practice: () => import('./views/practice.js?v=0ff919c245'),
+  memorize: () => import('./views/memorize.js?v=0ff919c245'),
+  exam: () => import('./views/exam.js?v=0ff919c245'),
+  missed: () => import('./views/missed.js?v=0ff919c245'),
+  settings: () => import('./views/settings.js?v=0ff919c245'),
 };
 
 const app = document.getElementById('app');
@@ -110,6 +111,7 @@ function lock() {
   if (HUB.mode === 'local') return;
   store.clearPass();
   cleanup();
+  unmountChat();
   bundle = null;
   showGate();
 }
@@ -134,6 +136,7 @@ function start() {
   app.append(...[whatsNew(course)].filter(Boolean), h('header', { class: 'topbar' }, h('div', { class: 'topbar-in' }, histBtns(), h('a', { class: 'brand', href: '#/' }, h('img', { src: 'icon.svg', alt: '', width: 24, height: 24 }), h('span', null, HUB.short)), navEl)), mainEl);
   window.removeEventListener('hashchange', route);
   window.addEventListener('hashchange', route);
+  mountChat(ctxBase);
   route();
 }
 

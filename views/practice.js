@@ -1,7 +1,8 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=6f7658f99f';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=6f7658f99f';
-import * as store from '../lib/store.js?v=6f7658f99f';
+import { HUB } from '../hub.js?v=0ff919c245';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=0ff919c245';
+import * as store from '../lib/store.js?v=0ff919c245';
+import { setChatContext } from '../lib/chat.js?v=0ff919c245';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -474,6 +475,7 @@ export function mountEngine(root, opts) {
     h('div', { class: 'progress-label' }, `Question ${S.idx + 1} of ${S.list.length}, ${answeredN} answered`));
     kids.push(h('div', { class: 'qlayout' }, h('div', { class: 'qside' }, navigator()), card(cur())));
     fill(root, ...kids);
+    setChatContext({ kind: 'question', q: cur().q, module: opts.moduleId ? opts.mods?.get(opts.moduleId) : undefined, state: st(cur().q), hideAnswer: timed && S.phase === 'run', label: `Q${S.idx + 1}` + (catTitle(cur().q.group) ? ' · ' + catTitle(cur().q.group) : '') });
     const f = root.querySelector('.timed-bar'); if (!f && timerEl) timerEl = null;
   }
 

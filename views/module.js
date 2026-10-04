@@ -1,6 +1,7 @@
-import { HUB } from '../hub.js?v=6f7658f99f';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=6f7658f99f';
-import * as store from '../lib/store.js?v=6f7658f99f';
+import { HUB } from '../hub.js?v=0ff919c245';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=0ff919c245';
+import * as store from '../lib/store.js?v=0ff919c245';
+import { setChatContext } from '../lib/chat.js?v=0ff919c245';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const levelPill = (l) => h('span', { class: 'gsi-lv lv' + l, title: HUB.focus.short + ' level ' + l + ' of 3' }, GSI_LEVEL[l] || 'Covered');
@@ -97,6 +98,7 @@ export function render(ctx) {
   main.prepend(head);
   put(root, h('div', { class: 'wrap wide' }, h('div', { class: 'mod-layout' }, main, side)));
   sections.forEach((s) => paint(s.id));
+  setChatContext({ kind: 'module', module: mod, sectionId: sections[Math.max(0, targetIdx)]?.id });
 
   // deep link: #/m/<module>?s=<section> scrolls to that section (twice, since lazy figures shift the layout)
   if (targetIdx >= 0) {
@@ -125,7 +127,7 @@ export function render(ctx) {
   // highlight current section in the TOC
   if ('IntersectionObserver' in window && sections.length) {
     const cur = new IntersectionObserver((entries) => {
-      for (const en of entries) if (en.isIntersecting) { readEls.forEach((e) => e.toc.classList.remove('current')); readEls.get(en.target.dataset.sid)?.toc.classList.add('current'); }
+      for (const en of entries) if (en.isIntersecting) { setChatContext({ kind: 'module', module: mod, sectionId: en.target.dataset.sid }); readEls.forEach((e) => e.toc.classList.remove('current')); readEls.get(en.target.dataset.sid)?.toc.classList.add('current'); }
     }, { rootMargin: '-20% 0px -70% 0px' });
     sections.forEach((s) => { readEls.get(s.id).sec.dataset.sid = s.id; cur.observe(readEls.get(s.id).sec); });
     ctx.onCleanup(() => cur.disconnect());
