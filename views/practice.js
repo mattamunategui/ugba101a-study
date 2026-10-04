@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=0ff919c245';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=0ff919c245';
-import * as store from '../lib/store.js?v=0ff919c245';
-import { setChatContext } from '../lib/chat.js?v=0ff919c245';
+import { HUB } from '../hub.js?v=b71fc1a1c2';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=b71fc1a1c2';
+import * as store from '../lib/store.js?v=b71fc1a1c2';
+import { setChatContext } from '../lib/chat.js?v=b71fc1a1c2';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
