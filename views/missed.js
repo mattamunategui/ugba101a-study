@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=16e7de0477';
-import { h, fill, put } from '../lib/render.js?v=16e7de0477';
-import * as store from '../lib/store.js?v=16e7de0477';
-import { mountEngine } from './practice.js?v=16e7de0477';
+import { HUB } from '../hub.js?v=6f7658f99f';
+import { h, fill, put } from '../lib/render.js?v=6f7658f99f';
+import * as store from '../lib/store.js?v=6f7658f99f';
+import { mountEngine } from './practice.js?v=6f7658f99f';
 
 export function render(ctx) {
   document.title = 'Missed' + ' · ' + HUB.short;

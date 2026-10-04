@@ -1,7 +1,7 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=16e7de0477';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=16e7de0477';
-import * as store from '../lib/store.js?v=16e7de0477';
+import { HUB } from '../hub.js?v=6f7658f99f';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=6f7658f99f';
+import * as store from '../lib/store.js?v=6f7658f99f';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -57,7 +57,7 @@ export function mountEngine(root, opts) {
   const gi = (it) => { const i = gIds.indexOf(it.q.group); return i < 0 ? gIds.length : i; };
   let skipped = new Set(cat ? store.getSkipped(opts.moduleId) : []);
   const isSkip = (it) => cat && skipped.has(it.q.group);
-  const S = { filter: 'all', order: opts.defaultOrder === 'cat' && !cat ? 'gsi' : opts.defaultOrder || 'orig', catOpen: store.get('catpanel', true) !== false, shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
+  const S = { filter: 'all', order: opts.defaultOrder === 'cat' && !cat ? 'gsi' : opts.defaultOrder || 'orig', catOpen: false, shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
   const sess = new Map();
   const redone = new Set();
   const st = (q) => {
@@ -149,7 +149,7 @@ export function mountEngine(root, opts) {
   function startCat(g) {
     const l = S.list.map((it, i) => i).filter((i) => S.list[i].q.group === g);
     const i = l.find((j) => !store.getQ(S.list[j].q.id)) ?? l[0];
-    if (i != null) { S.idx = i; draw(); root.querySelector('.qcard')?.scrollIntoView({ block: 'start' }); }
+    if (i != null) { S.idx = i; draw(); toCard(); }
   }
   function giveUp() { const s = st(cur().q); s.wrong = false; s.done = true; s.ok = false; draw(); }
   function mark(ok) {
@@ -161,7 +161,9 @@ export function mountEngine(root, opts) {
   }
   // Next/Previous skip questions in categories marked "Got this, skip" (clicking a navigator box still opens one).
   function stepIdx(d) { for (let i = S.idx + d; i >= 0 && i < S.list.length; i += d) if (!isSkip(S.list[i])) return i; return -1; }
-  function go(d) { const n = stepIdx(d); if (n >= 0) { S.idx = n; draw(); window.scrollTo({ top: 0 }); } }
+  function go(d) { const n = stepIdx(d); if (n >= 0) { S.idx = n; draw(); toCard(); } }
+  // bring the new question's top into view (below the sticky header) only if it isn't already
+  function toCard() { const c = root.querySelector('.qcard'); if (!c) return; const t = c.getBoundingClientRect().top; if (t < 56 || t > innerHeight * 0.6) c.scrollIntoView({ block: 'start' }); }
   function next() {
     if (stepIdx(1) >= 0) go(1);
     else if (timed) { if (S.phase === 'run') { S.confirming = true; draw(); } else { S.idx = 0; draw(); } }
@@ -260,7 +262,7 @@ export function mountEngine(root, opts) {
           h('button', { class: 'btn small', type: 'button', 'aria-label': 'Start here: ' + g.title, disabled: !S.list.some((it) => it.q.group === g.id), onclick: () => startCat(g.id) }, 'Start here'),
           h('button', { class: 'btn small ghost', type: 'button', 'aria-pressed': sk ? 'true' : 'false', 'aria-label': (sk ? 'Unskip: ' : 'Got this, skip: ') + g.title, onclick: () => setSkip(g.id, !sk) }, sk ? 'Unskip' : 'Got this, skip')));
     }).filter(Boolean);
-    return h('details', { class: 'catpanel', open: S.catOpen, ontoggle: (e) => { S.catOpen = e.target.open; store.set('catpanel', S.catOpen); } },
+    return h('details', { class: 'catpanel', open: S.catOpen, ontoggle: (e) => { S.catOpen = e.target.open; } },
       h('summary', null, `Categories (${rows.length})`), h('ul', { class: 'cat-list' }, rows));
   }
 
@@ -470,7 +472,7 @@ export function mountEngine(root, opts) {
     kids.push(h('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': S.list.length, 'aria-valuenow': answeredN, 'aria-label': 'Progress' },
       h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })),
     h('div', { class: 'progress-label' }, `Question ${S.idx + 1} of ${S.list.length}, ${answeredN} answered`));
-    kids.push(navigator(), card(cur()));
+    kids.push(h('div', { class: 'qlayout' }, h('div', { class: 'qside' }, navigator()), card(cur())));
     fill(root, ...kids);
     const f = root.querySelector('.timed-bar'); if (!f && timerEl) timerEl = null;
   }

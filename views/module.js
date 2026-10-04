@@ -1,6 +1,6 @@
-import { HUB } from '../hub.js?v=16e7de0477';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=16e7de0477';
-import * as store from '../lib/store.js?v=16e7de0477';
+import { HUB } from '../hub.js?v=6f7658f99f';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=6f7658f99f';
+import * as store from '../lib/store.js?v=6f7658f99f';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const levelPill = (l) => h('span', { class: 'gsi-lv lv' + l, title: HUB.focus.short + ' level ' + l + ' of 3' }, GSI_LEVEL[l] || 'Covered');
