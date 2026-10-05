@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=e3450f5a32';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=e3450f5a32';
-import * as store from '../lib/store.js?v=e3450f5a32';
-import { setChatContext } from '../lib/chat.js?v=e3450f5a32';
+import { HUB } from '../hub.js?v=9facf516b2';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=9facf516b2';
+import * as store from '../lib/store.js?v=9facf516b2';
+import { setChatContext } from '../lib/chat.js?v=9facf516b2';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -243,7 +243,7 @@ export function mountEngine(root, opts) {
     const g = q.guide;
     const link = ({ module: m, section: sec }) => h('a', { href: `#/m/${m}?s=${sec}` }, 'Review: ' + (opts.mods?.get(m)?.sections?.find((x) => x.id === sec)?.heading || sec));
     return h('div', { class: 'walk' },
-      g.steps?.length > 0 && h('details', { class: 'walk-steps', open: true }, h('summary', null, 'Step by step'),
+      g.steps?.length > 0 && h('details', { class: 'walk-steps', open: !ok }, h('summary', null, 'Step by step'),
         h('ol', null, g.steps.map((t) => h('li', { html: md(t) })))),
       g.concept && h('details', null, h('summary', null, 'What this tests'), h('div', { class: 'md', html: md(g.concept) })),
       (g.review || g.links?.length > 0) && h('details', { open: !ok }, h('summary', null, 'To strengthen this'),
@@ -336,7 +336,7 @@ export function mountEngine(root, opts) {
         h('div', { class: 'fb-head' }, ok ? (q.type === 'short' ? '✓ Got it' : s.tries > 1 ? `✓ Correct on try ${s.tries}` : '✓ Correct') : (q.type === 'short' ? '✗ Missed it' : '✗ Incorrect'),
           q.type === 'numeric' && !ok && h('span', { class: 'fb-ans' }, 'Answer: ', fmtAns(q))),
         q.type === 'numeric' && ok && h('div', { class: 'fb-sub' }, 'Answer: ' + fmtAns(q)),
-        q.explanation && h('div', { class: 'md', html: md(q.explanation) }),
+        q.explanation && (ok ? h('details', { class: 'walk-steps' }, h('summary', null, 'Explanation'), h('div', { class: 'md', html: md(q.explanation) })) : h('div', { class: 'md', html: md(q.explanation) })),
         q.guide && walkthrough(q, ok),
         h('div', { class: 'fb-tags' },
           q.source && h('span', null, 'Source: ' + q.source),
