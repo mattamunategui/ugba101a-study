@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=002235cafa';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=002235cafa';
-import * as store from '../lib/store.js?v=002235cafa';
-import { setChatContext } from '../lib/chat.js?v=002235cafa';
+import { HUB } from '../hub.js?v=f5494c110b';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=f5494c110b';
+import * as store from '../lib/store.js?v=f5494c110b';
+import { setChatContext } from '../lib/chat.js?v=f5494c110b';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -51,14 +51,12 @@ const fmtAns = (q) => `${q.answer}${q.unit ? ' ' + q.unit : ''}${q.tolerance ? `
 export function mountEngine(root, opts) {
   const items = opts.items;
   const timed = !!opts.timed;
-  const filtersOn = opts.filters !== false && !timed;
   // Skill categories (module practice only): groups from the module, untimed.
   const cat = !timed && !!opts.moduleId && Array.isArray(opts.groups) && opts.groups.length > 0;
   const gIds = cat ? opts.groups.map((g) => g.id) : [];
   const gi = (it) => { const i = gIds.indexOf(it.q.group); return i < 0 ? gIds.length : i; };
-  let skipped = new Set(cat ? store.getSkipped(opts.moduleId) : []);
-  const isSkip = (it) => cat && skipped.has(it.q.group);
-  const S = { filter: 'all', order: opts.defaultOrder === 'cat' && !cat ? 'gsi' : opts.defaultOrder || 'orig', catOpen: false, shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
+  const isSkip = () => false; // ponytail: category skipping UI removed; drop the isSkip plumbing if it never comes back
+  const S = { filter: 'all', order: opts.defaultOrder === 'cat' && !cat ? 'gsi' : opts.defaultOrder || 'orig', shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
   const sess = new Map();
   const redone = new Set();
   const st = (q) => {
@@ -146,12 +144,6 @@ export function mountEngine(root, opts) {
   function nextStep() {
     const q = cur().q, s = st(q); s.steps = Math.min((s.steps || 1) + 1, q.guide.steps.length); draw();
   }
-  function setSkip(g, on) { on ? skipped.add(g) : skipped.delete(g); store.setSkipped(opts.moduleId, [...skipped]); draw(); }
-  function startCat(g) {
-    const l = S.list.map((it, i) => i).filter((i) => S.list[i].q.group === g);
-    const i = l.find((j) => !store.getQ(S.list[j].q.id)) ?? l[0];
-    if (i != null) { S.idx = i; draw(); toCard(); }
-  }
   function giveUp() { const s = st(cur().q); s.wrong = false; s.done = true; s.ok = false; draw(); }
   function mark(ok) {
     const it = cur(); if (!it) return; const q = it.q, s = st(q);
@@ -235,37 +227,7 @@ export function mountEngine(root, opts) {
   document.addEventListener('keydown', onKey);
 
   // ---- rendering ----
-  function toolbar() {
-    if (!filtersOn) return null;
-    const counts = { all: items.length, unanswered: items.filter((i) => !store.getQ(i.q.id)).length, missed: items.filter((i) => { const a = store.getQ(i.q.id); return a && !a.ok; }).length, emphasis: items.filter((i) => i.q.emphasis).length, gsi: items.filter((i) => i.q.gsi).length };
-    const sel = h('select', { id: 'flt', 'aria-label': 'Filter questions', onchange: (e) => { S.filter = e.target.value; rebuild(); draw(); } },
-      ...[['all', 'All'], ['unanswered', 'Unanswered'], ['missed', 'Missed'], ['emphasis', 'Prof emphasis'], ['gsi', HUB.focus.short + ' focus only']].map(([v, l]) => h('option', { value: v, selected: v === S.filter }, `${l} (${counts[v]})`)));
-    const ord = h('select', { id: 'ord', 'aria-label': 'Question order', disabled: S.shuffle, onchange: (e) => { S.order = e.target.value; rebuild(); draw(); } },
-      ...(cat ? [['cat', 'By category (easy → hard)'], ['gsi', HUB.focus.short + ' first'], ['orig', 'Original order']] : [['orig', 'Original order'], ['gsi', HUB.focus.short + ' first']]).map(([v, l]) => h('option', { value: v, selected: v === S.order }, l)));
-    return h('div', { class: 'toolbar' }, h('span', { class: 'field-group' }, h('label', { class: 'field-inline', for: 'flt' }, 'Show'), sel),
-      h('span', { class: 'field-group' }, h('label', { class: 'field-inline', for: 'ord' }, 'Order'), ord),
-      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: S.shuffle, onchange: (e) => { S.shuffle = e.target.checked; rebuild(); draw(); } }), ' Shuffle'));
-  }
-
   const catTitle = (g) => cat && opts.groups.find((x) => x.id === g)?.title;
-
-  function catPanel() {
-    const curG = cur()?.q.group;
-    const rows = opts.groups.map((g) => {
-      const qs = items.filter((it) => it.q.group === g.id);
-      if (!qs.length) return null;
-      const as = qs.map((it) => store.getQ(it.q.id)).filter(Boolean), right = as.filter((a) => a.ok).length;
-      const sk = skipped.has(g.id);
-      return h('li', { class: 'cat-row' + (sk ? ' skipped' : '') + (g.id === curG ? ' cur' : '') },
-        h('div', { class: 'cat-info' }, h('div', { class: 'cat-title' }, g.title), g.skill && h('div', { class: 'cat-skill', html: mdInline(g.skill) }),
-          h('div', { class: 'cat-prog' }, `${as.length}/${qs.length} done` + (as.length ? ` · ${right} right` : ''))),
-        h('div', { class: 'cat-actions' },
-          h('button', { class: 'btn small', type: 'button', 'aria-label': 'Start here: ' + g.title, disabled: !S.list.some((it) => it.q.group === g.id), onclick: () => startCat(g.id) }, 'Start here'),
-          h('button', { class: 'btn small ghost', type: 'button', 'aria-pressed': sk ? 'true' : 'false', 'aria-label': (sk ? 'Unskip: ' : 'Got this, skip: ') + g.title, onclick: () => setSkip(g.id, !sk) }, sk ? 'Unskip' : 'Got this, skip')));
-    }).filter(Boolean);
-    return h('details', { class: 'catpanel', open: S.catOpen, ontoggle: (e) => { S.catOpen = e.target.open; } },
-      h('summary', null, `Categories (${rows.length})`), h('ul', { class: 'cat-list' }, rows));
-  }
 
   function hintBox(q, s) {
     const g = q.guide, n = s.steps || 1, tot = g.steps.length;
@@ -462,9 +424,6 @@ export function mountEngine(root, opts) {
           h('button', { class: 'btn', type: 'button', onclick: () => { S.confirming = false; draw(); } }, 'Keep working')));
       }
       if (S.phase === 'review') kids.push(reviewSummary());
-    } else {
-      kids.push(toolbar());
-      if (cat) kids.push(catPanel());
     }
     if (!S.list.length) {
       kids.push(h('div', { class: 'empty' }, h('p', null, items.length ? 'No questions match this filter.' : 'No questions here yet.'), items.length > 0 && h('button', { class: 'btn', type: 'button', onclick: () => { S.filter = 'all'; rebuild(); draw(); } }, 'Show all')));
@@ -472,8 +431,7 @@ export function mountEngine(root, opts) {
     }
     const answeredN = S.list.filter((i) => fin(st(i.q)) || (timed && S.phase === 'run' && hasResp(i.q, st(i.q).resp))).length;
     kids.push(h('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': S.list.length, 'aria-valuenow': answeredN, 'aria-label': 'Progress' },
-      h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })),
-    h('div', { class: 'progress-label' }, `Question ${S.idx + 1} of ${S.list.length}, ${answeredN} answered`));
+      h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })));
     kids.push(h('div', { class: 'qlayout' }, h('div', { class: 'qside' }, navigator()), card(cur())));
     fill(root, ...kids);
     setChatContext({ kind: 'question', q: cur().q, module: opts.moduleId ? opts.mods?.get(opts.moduleId) : undefined, state: st(cur().q), hideAnswer: timed && S.phase === 'run', label: `Q${S.idx + 1}` + (catTitle(cur().q.group) ? ' · ' + catTitle(cur().q.group) : '') });
