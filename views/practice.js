@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=b71fc1a1c2';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=b71fc1a1c2';
-import * as store from '../lib/store.js?v=b71fc1a1c2';
-import { setChatContext } from '../lib/chat.js?v=b71fc1a1c2';
+import { HUB } from '../hub.js?v=002235cafa';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=002235cafa';
+import * as store from '../lib/store.js?v=002235cafa';
+import { setChatContext } from '../lib/chat.js?v=002235cafa';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -425,7 +425,8 @@ export function mountEngine(root, opts) {
         missed.length > 0 && h('button', { class: 'btn primary', type: 'button', onclick: () => { const ids = new Set(missed.map((r) => r.it.q.id)); S.list = S.list.filter((x) => ids.has(x.q.id)); for (const x of S.list) sess.delete(x.q.id); S.idx = 0; S.phase = 'run'; draw(); } }, `Retry ${missed.length} missed`),
         opts.again && h('button', { class: 'btn primary', type: 'button', onclick: () => { cleanup(); opts.again(); } }, 'New round'),
         h('button', { class: 'btn', type: 'button', onclick: () => { sess.clear(); rebuild(); draw(); } }, 'Restart set'),
-        opts.backHref && h('a', { class: 'btn ghost', href: opts.backHref }, opts.backLabel || 'Back')));
+        opts.backHref && h('a', { class: 'btn ghost', href: opts.backHref }, opts.doneLabel || opts.backLabel || 'Back')),
+      opts.nextLinks?.length > 0 && h('div', { class: 'row-actions next-mod' }, h('span', { class: 'muted' }, opts.nextTitle), opts.nextLinks.map((l) => h('a', { class: 'btn' + (l.primary ? ' primary' : ''), href: l.href }, l.label))));
   }
 
   function reviewSummary() {
@@ -497,5 +498,8 @@ export function render(ctx) {
   const root = h('div', { class: 'wrap engine' });
   ctx.root.append(root);
   const hasGroups = Array.isArray(mod.groups) && mod.groups.length > 0;
-  ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/m/' + id, backLabel: 'Module', defaultOrder: hasGroups ? 'cat' : 'gsi', groups: mod.groups, moduleId: id, mods: ctx.mods }));
+  const order = ctx.course.parts.find((p) => p.modules.includes(id))?.modules || [];
+  const pos = order.indexOf(id), nx = pos >= 0 ? ctx.mods.get(order[pos + 1]) : null;
+  const nextLinks = nx ? [{ href: '#/m/' + nx.id, label: 'Read it', primary: true }, (nx.questions || []).length > 0 && { href: '#/practice/' + nx.id, label: `Practice its ${nx.questions.length} questions` }].filter(Boolean) : [];
+  ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/', backLabel: pos >= 0 ? `Module ${pos + 1}` : 'All modules', doneLabel: 'All modules', nextLinks, nextTitle: nx && `Next up, Module ${pos + 2}: ${nx.title}`, defaultOrder: hasGroups ? 'cat' : 'gsi', groups: mod.groups, moduleId: id, mods: ctx.mods }));
 }

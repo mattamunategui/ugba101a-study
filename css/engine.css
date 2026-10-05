@@ -79,6 +79,9 @@
 /* results */
 .summary { margin: 16px 0; padding-top: 16px; border-top: 1px solid var(--border); }
 .summary h2 { margin-bottom: .3em; }
+.summary .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.summary .next-mod { margin-top: 20px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+.summary .next-mod > span { flex-basis: 100%; font-weight: 600; color: var(--text); }
 .big-score { font: 400 2.441rem/1.1 var(--serif); font-variant-numeric: tabular-nums; margin: 4px 0 12px; }
 .big-score span { font: 400 1rem var(--font); color: var(--muted); margin-left: 8px; }
 .sum-list { list-style: none; padding: 0; margin: 12px 0; border-top: 1px solid var(--border); }
