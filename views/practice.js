@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=f5494c110b';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=f5494c110b';
-import * as store from '../lib/store.js?v=f5494c110b';
-import { setChatContext } from '../lib/chat.js?v=f5494c110b';
+import { HUB } from '../hub.js?v=b8ec976334';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=b8ec976334';
+import * as store from '../lib/store.js?v=b8ec976334';
+import { setChatContext } from '../lib/chat.js?v=b8ec976334';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -293,14 +293,7 @@ export function mountEngine(root, opts) {
     const locked = fb || !!s.wrong;
     const body = [];
     if (it.section && opts.showSections !== false) body.push(h('div', { class: 'q-section' }, it.section));
-    if (cat && q.group && catTitle(q.group)) {
-      const same = S.list.filter((x) => x.q.group === q.group);
-      body.push(h('div', { class: 'q-cat' }, h('span', { class: 'q-cat-name' }, catTitle(q.group)), ` · Question ${same.indexOf(it) + 1} of ${same.length} in this category`, q.difficulty && h('span', { class: 'q-diff' }, DIFF[q.difficulty])));
-    }
-    body.push(h('div', { class: 'q-meta' },
-      h('span', { class: 'q-type' }, { mcq: 'Multiple choice', tf: 'True or false', multi: 'Select all that apply', numeric: 'Numeric', short: 'Short answer' }[q.type]),
-      q.gsi && h('span', { class: 'tag-focus', title: HUB.focus.label + ': ' + GSI_LEVEL[q.gsi] }, HUB.focus.short),
-      it.label && h('span', { class: 'q-label' }, it.href ? h('a', { href: it.href }, it.label) : it.label)));
+    if (q.type === 'multi') body.push(h('div', { class: 'q-meta' }, 'Select all that apply'));
     body.push(h('div', { class: 'prompt', html: md(q.prompt) }));
     if (q.figure) body.push(figureEl(q.figure));
 
@@ -364,7 +357,7 @@ export function mountEngine(root, opts) {
     else if (!timed && !s.done && q.type === 'short' && !s.revealed) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'Reveal answer'));
     else if (s.done || (timed && S.phase === 'review')) foot.append(h('button', { class: 'btn primary', type: 'button', onclick: next }, last ? (timed ? 'Back to start' : 'Finish') : 'Next'));
     if (s.restored && !timed) foot.append(h('button', { class: 'btn ghost', type: 'button', onclick: redo }, 'Redo this question'));
-    return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot, !timed && h('div', { class: 'kbd-hint' }, q.type === 'numeric' ? 'Keys: type your answer, Enter checks, Enter again for the next question; arrow keys move' : q.type === 'short' ? 'Keys: type, then Enter reveals the answer (Shift+Enter for a new line); 1 = got it, 2 = missed; Enter for the next question' : 'Keys: 1 to 5 choose, Enter checks or advances, arrow keys move'));
+    return h('article', { class: 'qcard', 'aria-live': 'polite' }, body, foot);
   }
 
   function summary() {
