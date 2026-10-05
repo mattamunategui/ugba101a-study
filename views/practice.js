@@ -1,9 +1,8 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=c88122920d';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=c88122920d';
-import * as store from '../lib/store.js?v=c88122920d';
-import { setChatContext } from '../lib/chat.js?v=c88122920d';
-import { scoreText } from './module.js?v=c88122920d';
+import { HUB } from '../hub.js?v=b408fab770';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=b408fab770';
+import * as store from '../lib/store.js?v=b408fab770';
+import { setChatContext } from '../lib/chat.js?v=b408fab770';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -465,6 +464,16 @@ function practiceIndex(ctx) {
   ctx.root.append(h('div', { class: 'wrap' }, h('h1', null, 'Practice questions'),
     mods.length ? h('div', { class: 'cards' }, mods.map(([m, n]) => h('a', { class: 'mod-card', href: '#/practice/' + m.id },
       h('div', { class: 'lec' }, 'Module ' + n), h('h3', null, m.title),
-      h('div', { class: 'mc-stats' }, h('span', null, `${m.questions.length} questions · ${scoreText(store.moduleScore(m))}`)))))
+      practiceStats(store.moduleScore(m)))))
       : h('p', { class: 'muted' }, 'No practice questions yet.')));
+}
+
+// Bar = share of questions attempted, split into right (green) and wrong (red).
+function practiceStats(sc) {
+  const pct = (n) => `width:${sc.total ? (100 * n) / sc.total : 0}%`;
+  const label = !sc.attempted ? `${sc.total} questions · Not started`
+    : `${sc.attempted} of ${sc.total} done · ${sc.correct} right` + (sc.attempted === sc.total ? ' · ✓ Complete' : '');
+  return h('div', { class: 'mc-stats' }, h('span', null, label),
+    h('div', { class: 'progress pq-bar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': sc.total, 'aria-valuenow': sc.attempted, 'aria-label': 'Questions done' },
+      h('div', { class: 'progress-fill pq-ok', style: pct(sc.correct) }), h('div', { class: 'progress-fill pq-bad', style: pct(sc.attempted - sc.correct) })));
 }

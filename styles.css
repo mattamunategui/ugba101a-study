@@ -106,6 +106,8 @@ main { outline: none; }
 .progress { height: 2px; background: var(--border); }
 .progress.thin { margin-bottom: 4px; }
 .progress-fill { height: 100%; background: var(--accent); transition: width .3s; }
+.pq-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.pq-bar .pq-ok { background: var(--good); } .pq-bar .pq-bad { background: var(--bad); }
 .progress-label { font-size: .85rem; color: var(--muted); margin: 6px 0 8px; font-variant-numeric: tabular-nums; }
 .mini-progress { display: grid; gap: 4px; max-width: 360px; font-size: .85rem; color: var(--muted); margin: 8px 0 16px; font-variant-numeric: tabular-nums; }
 

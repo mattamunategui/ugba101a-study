@@ -1,9 +1,9 @@
 // Efficiencymaxxing: per-module exam playbook (question types + fastest method), launches practice per play.
-import { HUB } from '../hub.js?v=c88122920d';
-import { h, md, mdInline, figureEl, fill, put } from '../lib/render.js?v=c88122920d';
-import * as store from '../lib/store.js?v=c88122920d';
-import { mountEngine } from './practice.js?v=c88122920d';
-import { focusTopics } from './focus.js?v=c88122920d';
+import { HUB } from '../hub.js?v=b408fab770';
+import { h, md, mdInline, figureEl, fill, put } from '../lib/render.js?v=b408fab770';
+import * as store from '../lib/store.js?v=b408fab770';
+import { mountEngine } from './practice.js?v=b408fab770';
+import { focusTopics } from './focus.js?v=b408fab770';
 
 const LIKE = { 3: 'Very likely', 2: 'Likely', 1: 'Possible' };
 const doneSet = () => new Set(store.get('maxdone', []) || []);
