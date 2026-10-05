@@ -1,8 +1,9 @@
-// Practice engine shared by modules, exams, the missed queue and memorize-quiz.
-import { HUB } from '../hub.js?v=b8ec976334';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=b8ec976334';
-import * as store from '../lib/store.js?v=b8ec976334';
-import { setChatContext } from '../lib/chat.js?v=b8ec976334';
+// Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
+import { HUB } from '../hub.js?v=c88122920d';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=c88122920d';
+import * as store from '../lib/store.js?v=c88122920d';
+import { setChatContext } from '../lib/chat.js?v=c88122920d';
+import { scoreText } from './module.js?v=c88122920d';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -394,7 +395,7 @@ export function mountEngine(root, opts) {
       h('div', { class: 'sec-scores' }, [...sc.secs].map(([k, v]) => h('div', { class: 'sec-score' },
         h('div', { class: 'sec-name' }, k), h('div', { class: 'bar' }, h('span', { style: `width:${v.total ? (100 * v.right) / v.total : 0}%` })),
         h('div', { class: 'sec-num' }, `${v.right} of ${v.total}`)))),
-      h('p', { class: 'muted' }, 'Review each question below. Wrong answers were added to your Missed queue.'));
+      h('p', { class: 'muted' }, 'Review each question below.'));
   }
 
   function draw() {
@@ -442,6 +443,7 @@ export function mountEngine(root, opts) {
 // ---- module practice route ----
 export function render(ctx) {
   const [id] = ctx.params;
+  if (!id) return practiceIndex(ctx);
   const mod = ctx.mods.get(id);
   if (!mod) { ctx.root.append(h('p', null, 'Module not found.')); return; }
   document.title = 'Practice: ' + mod.title + ' · ' + HUB.short;
@@ -453,4 +455,16 @@ export function render(ctx) {
   const pos = order.indexOf(id), nx = pos >= 0 ? ctx.mods.get(order[pos + 1]) : null;
   const nextLinks = nx ? [{ href: '#/m/' + nx.id, label: 'Read it', primary: true }, (nx.questions || []).length > 0 && { href: '#/practice/' + nx.id, label: `Practice its ${nx.questions.length} questions` }].filter(Boolean) : [];
   ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/', backLabel: pos >= 0 ? `Module ${pos + 1}` : 'All modules', doneLabel: 'All modules', nextLinks, nextTitle: nx && `Next up, Module ${pos + 2}: ${nx.title}`, defaultOrder: hasGroups ? 'cat' : 'gsi', groups: mod.groups, moduleId: id, mods: ctx.mods }));
+}
+
+function practiceIndex(ctx) {
+  document.title = 'Practice · ' + HUB.short;
+  const parts = ctx.course.parts;
+  const part = parts.find((p) => p.id === store.get('part', null)) || parts[0];
+  const mods = (part?.modules || []).map((id, i) => [ctx.mods.get(id), i + 1]).filter(([m]) => m && (m.questions || []).length);
+  ctx.root.append(h('div', { class: 'wrap' }, h('h1', null, 'Practice questions'),
+    mods.length ? h('div', { class: 'cards' }, mods.map(([m, n]) => h('a', { class: 'mod-card', href: '#/practice/' + m.id },
+      h('div', { class: 'lec' }, 'Module ' + n), h('h3', null, m.title),
+      h('div', { class: 'mc-stats' }, h('span', null, `${m.questions.length} questions · ${scoreText(store.moduleScore(m))}`)))))
+      : h('p', { class: 'muted' }, 'No practice questions yet.')));
 }

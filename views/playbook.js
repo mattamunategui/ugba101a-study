@@ -1,8 +1,9 @@
 // Efficiencymaxxing: per-module exam playbook (question types + fastest method), launches practice per play.
-import { HUB } from '../hub.js?v=b8ec976334';
-import { h, md, mdInline, fill, put } from '../lib/render.js?v=b8ec976334';
-import * as store from '../lib/store.js?v=b8ec976334';
-import { mountEngine } from './practice.js?v=b8ec976334';
+import { HUB } from '../hub.js?v=c88122920d';
+import { h, md, mdInline, figureEl, fill, put } from '../lib/render.js?v=c88122920d';
+import * as store from '../lib/store.js?v=c88122920d';
+import { mountEngine } from './practice.js?v=c88122920d';
+import { focusTopics } from './focus.js?v=c88122920d';
 
 const LIKE = { 3: 'Very likely', 2: 'Likely', 1: 'Possible' };
 const doneSet = () => new Set(store.get('maxdone', []) || []);
@@ -19,7 +20,15 @@ export function render(ctx) {
   let part = parts.find((p) => p.id === store.get('part', null)) || parts[0];
   if (!part) { put(root, h('p', null, 'No playbook yet.')); return; }
   const files = (ctx.bundle.playbook || []).filter((f) => f.part === part.id);
-  const plays = files.flatMap((f) => (f.plays || []).map((p) => ({ ...p, module: f.module })));
+  const plays = files.flatMap((f) => (f.plays || []).map((p) => ({ ...p, module: f.module, focus: [] })));
+  // Fold each exam-focus topic into the play that shares the most practice questions; the rest go in "Also on the radar".
+  const radar = [];
+  for (const t of focusTopics(ctx).filter((t) => t.page.part === part.id)) {
+    const q = new Set(t.questionIds || []);
+    let best = null, n = 0;
+    for (const p of plays) { const k = (p.practice || []).filter((id) => q.has(id)).length; if (k > n) { best = p; n = k; } }
+    if (best) { best.focus.push(t); best.practice = [...new Set([...(best.practice || []), ...(t.questionIds || [])])]; } else radar.push(t);
+  }
 
   if (playId) {
     const play = plays.find((p) => p.id === playId);
@@ -34,7 +43,6 @@ export function render(ctx) {
   const mustknow = files.filter((f) => f.mustknow);
   const mods = (part.modules || []).map((id) => ({ m: ctx.mods.get(id), plays: plays.filter((p) => p.module === id) })).filter((x) => x.m && x.plays.length);
   const e = part.exam, when = e && fmtDate(e.start);
-  const flags = { likely: !!store.get('max-likely', false), hide: !!store.get('max-hide', false) };
   const body = h('div');
   put(root, h('a', { class: 'back', href: '#/' }, 'Home'),
     h('h1', null, 'Efficiencymaxxing'),
@@ -46,20 +54,16 @@ export function render(ctx) {
   function draw() {
     const done = doneSet();
     const open = new Set([...body.querySelectorAll('details.max-play[open]')].map((d) => d.dataset.play)); // keep expanded cards open across redraws
-    const show = (p) => (!flags.likely || p.likelihood === 3) && (!flags.hide || !done.has(p.id));
-    const toggle = (key, storeKey, label) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: flags[key], onchange: (ev) => { flags[key] = ev.target.checked; store.set(storeKey, flags[key]); draw(); } }), ' ' + label);
     const kids = [];
     if (mustknow.length) kids.push(mustKnow(mustknow));
-    kids.push(h('div', { class: 'max-controls' },
-      h('div', { class: 'max-chips', role: 'group', 'aria-label': 'Jump to module' }, mods.map(({ m }) => h('button', { class: 'max-chip', type: 'button', onclick: () => document.getElementById('max-' + m.id)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }) }, m.title.replace(/^(Module|Lecture)\s*\d+\s*[:.\-–]?\s*/i, '') || m.title))),
-      h('div', { class: 'max-toggles' }, toggle('likely', 'max-likely', 'Very likely only'), toggle('hide', 'max-hide', 'Hide done'))));
+    if (radar.length) kids.push(h('section', { class: 'max-mod' }, h('h2', null, 'Also on the radar'),
+      radar.map((t) => h('div', { class: 'max-ex' }, h('h4', null, t.title), h('div', { class: 'md', html: md(t.why || '') }), readLinks(t)))));
     for (const { m, plays: ps } of mods) {
-      const vis = ps.filter(show);
       const n3 = ps.filter((p) => p.likelihood === 3).length, nd = ps.filter((p) => done.has(p.id)).length;
       kids.push(h('section', { class: 'max-mod', id: 'max-' + m.id },
         h('h2', null, h('a', { href: '#/m/' + encodeURIComponent(m.id) }, m.title)),
         h('p', { class: 'max-sum' }, `${ps.length} play${ps.length === 1 ? '' : 's'} · ${n3} very likely · ${nd} done`),
-        vis.length ? h('div', { class: 'max-plays' }, vis.map((p) => playCard(p, done.has(p.id), open.has(p.id)))) : h('p', { class: 'muted small' }, 'Nothing to show with these filters.')));
+        h('div', { class: 'max-plays' }, ps.map((p) => playCard(p, done.has(p.id), open.has(p.id))))));
     }
     fill(body, ...kids);
   }
@@ -83,8 +87,15 @@ export function render(ctx) {
         h('h4', null, 'Steps'), h('ol', null, (p.steps || []).map((s) => h('li', { html: mdInline(s) }))),
         p.example && h('div', { class: 'max-ex' }, h('h4', null, 'Example'), h('div', { class: 'md', html: md('**Q.** ' + p.example.q, true) }), h('div', { class: 'md', html: md('**A.** ' + p.example.a, true) })),
         (p.traps || []).length > 0 && h('ul', { class: 'max-traps' }, p.traps.map((t) => h('li', null, h('span', { 'aria-hidden': 'true' }, '⚠ '), h('span', { html: mdInline(t) })))),
+        p.focus.map((t) => h('div', { class: 'max-why' }, h('h4', null, 'Why it’s on the exam'), h('div', { class: 'md', html: md(t.why || '') }), t.figure && figureEl(t.figure))),
         p.source && h('p', { class: 'max-src' }, p.source),
-        h('div', { class: 'max-actions' }, n > 0 && h('a', { class: 'btn small primary', href: `#/max/${encodeURIComponent(p.id)}` }, `Practice (${n})`), doneBtn)));
+        h('div', { class: 'max-actions' }, n > 0 && h('a', { class: 'btn small primary', href: `#/max/${encodeURIComponent(p.id)}` }, `Practice (${n})`),
+          p.focus.map((t) => [readLinks(t), (t.cardIds || []).length > 0 && h('a', { class: 'btn small', href: `#/focus/${encodeURIComponent(t.id)}/flash` }, `Flashcards (${t.cardIds.length})`)]), doneBtn)));
+  }
+
+  function readLinks(t) {
+    const ls = (t.links || []).filter((l) => ctx.mods.has(l.module));
+    return ls.map((l, i) => h('a', { class: 'btn small', href: `#/m/${encodeURIComponent(l.module)}?s=${encodeURIComponent(l.section)}`, title: ctx.mods.get(l.module).title }, ls.length > 1 ? `Read ${i + 1}` : 'Read this'));
   }
   draw();
 }

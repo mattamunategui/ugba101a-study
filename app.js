@@ -1,19 +1,18 @@
-import { HUB } from './hub.js?v=b8ec976334';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=b8ec976334';
-import * as store from './lib/store.js?v=b8ec976334';
-import { h, applyTheme, md } from './lib/render.js?v=b8ec976334';
-import { mountChat, unmountChat } from './lib/chat.js?v=b8ec976334';
+import { HUB } from './hub.js?v=c88122920d';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=c88122920d';
+import * as store from './lib/store.js?v=c88122920d';
+import { h, applyTheme, md } from './lib/render.js?v=c88122920d';
+import { mountChat, unmountChat } from './lib/chat.js?v=c88122920d';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=b8ec976334'),
-  m: () => import('./views/module.js?v=b8ec976334'),
-  focus: () => import('./views/focus.js?v=b8ec976334'),
-  max: () => import('./views/playbook.js?v=b8ec976334'),
-  practice: () => import('./views/practice.js?v=b8ec976334'),
-  memorize: () => import('./views/memorize.js?v=b8ec976334'),
-  exam: () => import('./views/exam.js?v=b8ec976334'),
-  missed: () => import('./views/missed.js?v=b8ec976334'),
-  settings: () => import('./views/settings.js?v=b8ec976334'),
+  '': () => import('./views/home.js?v=c88122920d'),
+  m: () => import('./views/module.js?v=c88122920d'),
+  focus: () => import('./views/focus.js?v=c88122920d'),
+  max: () => import('./views/playbook.js?v=c88122920d'),
+  practice: () => import('./views/practice.js?v=c88122920d'),
+  memorize: () => import('./views/memorize.js?v=c88122920d'),
+  exam: () => import('./views/exam.js?v=c88122920d'),
+  settings: () => import('./views/settings.js?v=c88122920d'),
 };
 
 const app = document.getElementById('app');
@@ -169,17 +168,15 @@ function whatsNew(course) {
 function refreshNav() {
   if (!navEl || !bundle) return;
   const seg = location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
-  const missed = store.missedItems(bundle).length;
-  // `short` is the label shown on phones so all seven items fit without scrolling
+  // `short` is the label shown on phones so all six items fit without scrolling
   const link = (href, text, key, extra, short) => h('a', { href, class: (seg === key ? 'active' : '') + (key === '' ? ' nav-home' : ''), 'aria-current': seg === key ? 'page' : null, 'aria-label': text },
     h('span', { class: 'nl-full' }, text), h('span', { class: 'nl-short', 'aria-hidden': 'true' }, short || text), extra);
   navEl.replaceChildren(
     link('#/', 'Home', ''),
-    link('#/focus', 'Exam Focus', 'focus', null, 'Focus'),
     link('#/max', 'Efficiencymaxxing', 'max', null, 'Maxx'),
+    link('#/practice', 'Practice', 'practice'),
     link('#/memorize', 'Memorize', 'memorize', null, 'Cards'),
     link('#/exam', 'Exams', 'exam'),
-    link('#/missed', 'Missed', 'missed', missed ? h('span', { class: 'pill' }, String(missed)) : null),
     link('#/settings', 'Settings', 'settings', null, 'Settings'));
 }
 

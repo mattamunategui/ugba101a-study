@@ -1,7 +1,6 @@
-import { HUB } from '../hub.js?v=b8ec976334';
-import { h, mdInline, fill, put } from '../lib/render.js?v=b8ec976334';
-import * as store from '../lib/store.js?v=b8ec976334';
-import { lectureLabel, scoreText } from './module.js?v=b8ec976334';
+import { h, mdInline, fill, put } from '../lib/render.js?v=c88122920d';
+import * as store from '../lib/store.js?v=c88122920d';
+import { lectureLabel, scoreText } from './module.js?v=c88122920d';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -50,17 +49,14 @@ export function render(ctx) {
     // quick links
     const decks = part.decks.map((d) => ctx.decks.get(d)).filter(Boolean);
     const exams = part.exams.map((d) => ctx.exams.get(d)).filter(Boolean);
-    const missed = store.missedItems(ctx.bundle).length;
     const cardsN = decks.reduce((n, d) => n + d.cards.length, 0);
-    const gsiTopics = (ctx.bundle.focus || []).filter((f) => !part.focus || part.focus.includes(f.id)).flatMap((f) => f.topics || []);
-    const gsiDone = store.focusDone();
+    const nQ = part.modules.reduce((n, id) => n + (ctx.mods.get(id)?.questions || []).length, 0);
     const link = (href, title, count, on = true) => on ? h('a', { href }, title, count && h('span', null, ' ' + count)) : h('span', { class: 'off' }, title, count && h('span', null, ' ' + count));
     kids.push(h('nav', { class: 'quick', 'aria-label': 'Study tools' },
-      gsiTopics.length > 0 && link('#/focus', HUB.focus.label, `${gsiTopics.filter((t) => gsiDone.has(t.id)).length} of ${gsiTopics.length} done`),
       link('#/max', 'Efficiencymaxxing', null, (ctx.bundle.playbook || []).some((f) => f.part === part.id)),
+      link('#/practice', 'Practice questions', String(nQ), nQ > 0),
       link('#/memorize', 'Memorize', `${cardsN} cards`, decks.length > 0),
-      link('#/exam', 'Exam practice', `${exams.length} set${exams.length === 1 ? '' : 's'}`, exams.length > 0),
-      link('#/missed', 'Retry missed', String(missed), missed > 0)));
+      link('#/exam', 'Exam practice', `${exams.length} set${exams.length === 1 ? '' : 's'}`, exams.length > 0)));
 
     kids.push(h('h2', { class: 'section-title' }, 'Modules'));
     kids.push(h('div', { class: 'cards' }, part.modules.map((mid) => {
