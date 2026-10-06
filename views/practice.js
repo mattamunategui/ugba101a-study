@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=c88bc5a465';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=c88bc5a465';
-import * as store from '../lib/store.js?v=c88bc5a465';
-import { setChatContext } from '../lib/chat.js?v=c88bc5a465';
+import { HUB } from '../hub.js?v=5c0f01166d';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=5c0f01166d';
+import * as store from '../lib/store.js?v=5c0f01166d';
+import { setChatContext } from '../lib/chat.js?v=5c0f01166d';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -264,7 +264,7 @@ export function mountEngine(root, opts) {
   function prioNote() {
     if (!usePrio) return null;
     return h('div', { class: 'prio-note' },
-      h('span', null, h('i', { class: 'pd p3' }), 'Will be tested'), h('span', null, h('i', { class: 'pd p2' }), 'In the slides'),
+      h('span', null, h('i', { class: 'pd p3' }), 'Will be tested'),
       nLow > 0 && h('button', { class: 'linkish', type: 'button', onclick: () => { S.showLow = !S.showLow; const id = cur()?.q.id; rebuild(); const j = S.list.findIndex((it) => it.q.id === id); if (j >= 0) S.idx = j; draw(); } },
         S.showLow ? 'Hide the questions not in the slides' : `Show ${nLow} question${nLow > 1 ? 's' : ''} not in the slides`));
   }
@@ -444,7 +444,7 @@ export function mountEngine(root, opts) {
     const answeredN = S.list.filter((i) => fin(st(i.q)) || (timed && S.phase === 'run' && hasResp(i.q, st(i.q).resp))).length;
     kids.push(h('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': S.list.length, 'aria-valuenow': answeredN, 'aria-label': 'Progress' },
       h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })));
-    kids.push(h('div', { class: 'qlayout' }, h('div', { class: 'qside' }, navigator(), prioNote()), card(cur())));
+    kids.push(h('div', { class: 'qlayout' }, h('div', { class: 'qside' }, h('div', { class: 'qstick' }, navigator(), prioNote())), card(cur())));
     fill(root, ...kids);
     setChatContext({ kind: 'question', q: cur().q, module: opts.moduleId ? opts.mods?.get(opts.moduleId) : undefined, state: st(cur().q), hideAnswer: timed && S.phase === 'run', label: `Q${S.idx + 1}` + (catTitle(cur().q.group) ? ' · ' + catTitle(cur().q.group) : '') });
     const f = root.querySelector('.timed-bar'); if (!f && timerEl) timerEl = null;
@@ -500,5 +500,5 @@ function practiceStats(sc) {
 function prioCounts(m) {
   const n = (p) => m.questions.filter((q) => q.priority === p).length;
   if (!n(3) && !n(2)) return null;
-  return h('div', { class: 'prio-count' }, h('span', null, h('i', { class: 'pd p3' }), `${n(3)} will be tested`), h('span', null, h('i', { class: 'pd p2' }), `${n(2)} in the slides`), n(1) > 0 && h('span', null, `${n(1)} not in slides (hidden)`));
+  return h('div', { class: 'prio-count' }, h('span', null, h('i', { class: 'pd p3' }), `${n(3)} will be tested`), n(1) > 0 && h('span', null, `${n(1)} not in slides (hidden)`));
 }

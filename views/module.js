@@ -1,9 +1,9 @@
-import { HUB } from '../hub.js?v=c88bc5a465';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=c88bc5a465';
-import * as store from '../lib/store.js?v=c88bc5a465';
-import { setChatContext } from '../lib/chat.js?v=c88bc5a465';
+import { HUB } from '../hub.js?v=5c0f01166d';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=5c0f01166d';
+import * as store from '../lib/store.js?v=5c0f01166d';
+import { setChatContext } from '../lib/chat.js?v=5c0f01166d';
 
-const PRIO = { 3: 'Will be tested', 1: 'Not in the slides' };
+const PRIO = { 3: '* Will be tested', 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const levelPill = (l) => h('span', { class: 'gsi-lv lv' + l, title: HUB.focus.short + ' level ' + l + ' of 3' }, GSI_LEVEL[l] || 'Covered');
 
