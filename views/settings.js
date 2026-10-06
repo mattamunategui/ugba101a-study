@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=5c0f01166d';
-import { h, applyTheme, fill, put } from '../lib/render.js?v=5c0f01166d';
-import * as store from '../lib/store.js?v=5c0f01166d';
-import { keyHint, setKey, clearKey, testKey } from '../lib/chat.js?v=5c0f01166d';
+import { HUB } from '../hub.js?v=106daaa0cf';
+import { h, applyTheme, fill, put } from '../lib/render.js?v=106daaa0cf';
+import * as store from '../lib/store.js?v=106daaa0cf';
+import { keyHint, setKey, clearKey, testKey } from '../lib/chat.js?v=106daaa0cf';
 
 export function render(ctx) {
   document.title = 'Settings · ' + HUB.short;

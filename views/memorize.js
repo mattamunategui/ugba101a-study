@@ -1,6 +1,6 @@
-import { HUB } from '../hub.js?v=5c0f01166d';
-import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=5c0f01166d';
-import * as store from '../lib/store.js?v=5c0f01166d';
+import { HUB } from '../hub.js?v=106daaa0cf';
+import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=106daaa0cf';
+import * as store from '../lib/store.js?v=106daaa0cf';
 
 const FIELD_NAMES = { three: '3-letter code', one: '1-letter code', cls: 'class', class: 'class', group: 'category', doubleBonds: 'number of double bonds', notation: 'C:DB notation', pKaR: 'side-chain pKa', figure: 'structure' };
 const ID_KEYS = ['name', 'title', 'topic', 'term', 'item'];
@@ -9,7 +9,9 @@ const idKey = (c, deck) => (deck?.idField && c.fields?.[deck.idField] != null ? 
 /** Short identifying label for a card (its name/topic field if present, else its front text). */
 const ident = (c, deck) => { const k = idKey(c, deck); return k ? plain(String(c.fields[k])) : label(c); };
 /** Usable question fields for a card (everything except the identifying field). */
-const qkeys = (c, deck) => (!idKey(c, deck) ? [] : Object.keys(c.fields || {}).filter((k) => k !== idKey(c, deck) && c.fields[k] != null && c.fields[k] !== '' && (!deck?.quizFields || deck.quizFields.includes(k))));
+// A field value of "—" means "doesn't apply": never quiz or match on it.
+const blank = (v) => v == null || v === '' || /^—/.test(String(v));
+const qkeys = (c, deck) => (!idKey(c, deck) ? [] : Object.keys(c.fields || {}).filter((k) => k !== idKey(c, deck) && !blank(c.fields[k]) && (!deck?.quizFields || deck.quizFields.includes(k))));
 const fieldPrompt = (deck, c, k) => (ANSWER_KEYS.includes(k) ? c.front
   : deck.quizPrompts?.[k] ? deck.quizPrompts[k].replace('{x}', `**${ident(c, deck)}**`)
   : `What is the **${fieldName(deck, k)}** of **${ident(c, deck)}**?`);
@@ -161,7 +163,7 @@ function attrsOf(deck, withSets = true) {
 }
 const up = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const lc = (a) => a.label.toLowerCase();
-const vk = (a, c) => { const v = a.id === FIG ? fk(c) : c.fields?.[a.id]; return v == null || v === '' ? null : String(v).trim().toLowerCase(); };
+const vk = (a, c) => { const v = a.id === FIG ? fk(c) : c.fields?.[a.id]; return blank(v) ? null : String(v).trim().toLowerCase(); };
 const chOf = (a, c) => (a.id === FIG ? { f: bare(c.figure) } : { t: String(c.fields[a.id]) });
 
 /** One Match question for card c (q = question attribute, a = answer attribute), or null when it can't be made unambiguous. */
@@ -406,7 +408,7 @@ function learn(ctx, root, deck, cards) {
     note(c), inSets(c));
   const table = () => h('div', { class: 'ln-tablewrap' }, h('table', { class: 'ln-table' },
     h('thead', null, h('tr', null, hasFig && h('th', null, 'Structure'), h('th', null, at.length ? 'Name' : 'Front'), at.length ? cols.map((a) => h('th', null, a.label)) : h('th', null, 'Back'), sets.length > 0 && h('th', null, 'Characteristics'))),
-    h('tbody', null, cards.map((c) => h('tr', null, hasFig && h('td', null, fig(c)), h('th', { scope: 'row' }, title(c)),
+    h('tbody', null, cards.filter((c) => cols.some((a) => !blank(c.fields?.[a.id]))).map((c) => h('tr', null, hasFig && h('td', null, fig(c)), h('th', { scope: 'row' }, title(c)),
       at.length ? cols.map((a) => h('td', null, cell(c, a))) : h('td', { class: 'md', html: md(c.back) }), sets.length > 0 && h('td', null, inSets(c)))))));
   const body = h('div');
   let view = store.get('memlearn', 'cards') === 'table' ? 'table' : 'cards';

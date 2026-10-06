@@ -1,18 +1,18 @@
-import { HUB } from './hub.js?v=5c0f01166d';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=5c0f01166d';
-import * as store from './lib/store.js?v=5c0f01166d';
-import { h, applyTheme, md } from './lib/render.js?v=5c0f01166d';
-import { mountChat, unmountChat } from './lib/chat.js?v=5c0f01166d';
+import { HUB } from './hub.js?v=106daaa0cf';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=106daaa0cf';
+import * as store from './lib/store.js?v=106daaa0cf';
+import { h, applyTheme, md } from './lib/render.js?v=106daaa0cf';
+import { mountChat, unmountChat } from './lib/chat.js?v=106daaa0cf';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=5c0f01166d'),
-  m: () => import('./views/module.js?v=5c0f01166d'),
-  focus: () => import('./views/focus.js?v=5c0f01166d'),
-  max: () => import('./views/playbook.js?v=5c0f01166d'),
-  practice: () => import('./views/practice.js?v=5c0f01166d'),
-  memorize: () => import('./views/memorize.js?v=5c0f01166d'),
-  exam: () => import('./views/exam.js?v=5c0f01166d'),
-  settings: () => import('./views/settings.js?v=5c0f01166d'),
+  '': () => import('./views/home.js?v=106daaa0cf'),
+  m: () => import('./views/module.js?v=106daaa0cf'),
+  focus: () => import('./views/focus.js?v=106daaa0cf'),
+  max: () => import('./views/playbook.js?v=106daaa0cf'),
+  practice: () => import('./views/practice.js?v=106daaa0cf'),
+  memorize: () => import('./views/memorize.js?v=106daaa0cf'),
+  exam: () => import('./views/exam.js?v=106daaa0cf'),
+  settings: () => import('./views/settings.js?v=106daaa0cf'),
 };
 
 const app = document.getElementById('app');
