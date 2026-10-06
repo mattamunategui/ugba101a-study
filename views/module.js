@@ -1,8 +1,9 @@
-import { HUB } from '../hub.js?v=9facf516b2';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=9facf516b2';
-import * as store from '../lib/store.js?v=9facf516b2';
-import { setChatContext } from '../lib/chat.js?v=9facf516b2';
+import { HUB } from '../hub.js?v=c88bc5a465';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=c88bc5a465';
+import * as store from '../lib/store.js?v=c88bc5a465';
+import { setChatContext } from '../lib/chat.js?v=c88bc5a465';
 
+const PRIO = { 3: 'Will be tested', 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const levelPill = (l) => h('span', { class: 'gsi-lv lv' + l, title: HUB.focus.short + ' level ' + l + ' of 3' }, GSI_LEVEL[l] || 'Covered');
 
@@ -57,7 +58,7 @@ export function render(ctx) {
     const sid = 'sec-' + s.id;
     const btn = h('button', { class: 'btn small read-toggle', type: 'button', 'aria-pressed': 'false', onclick: () => { store.setRead(id, s.id, !store.isRead(id, s.id)); paint(s.id); } }, 'Mark read');
     const sec = h('section', { class: 'sec', id: sid, 'aria-labelledby': sid + '-h' },
-      h('div', { class: 'sec-head' }, h('h2', { id: sid + '-h' }, h('span', { class: 'sec-n' }, String(i + 1)), s.heading), btn),
+      h('div', { class: 'sec-head' }, h('h2', { id: sid + '-h' }, h('span', { class: 'sec-n' }, String(i + 1)), s.heading, PRIO[s.priority] && h('span', { class: 'prio-tag p' + s.priority }, PRIO[s.priority])), btn),
       h('div', { class: 'md', html: md(s.body) }));
     (s.figures || []).forEach((f) => sec.append(figureEl(f)));
     const gsi = (s.gsiFocus || []).filter((g) => g && g.text);
@@ -73,12 +74,17 @@ export function render(ctx) {
         h('span', { class: 'pe-text', html: mdInline(e.text) }),
         e.source && h('span', { class: 'pe-src' }, e.source))))));
     if ((s.resources || []).length) sec.append(h('div', { class: 'res-list' }, h('h3', null, 'Watch or read'), s.resources.map(resourceEl)));
+    if (s.priority === 1) { // not in the slides: fold it away
+      const d = h('details', { class: 'sec-skip' }, h('summary', null, 'Not in the slides: skip unless you have spare time'));
+      while (sec.children.length > 1) d.append(sec.children[1]);
+      sec.append(d);
+    }
     const sentinel = h('div', { class: 'sentinel', 'aria-hidden': 'true', 'data-sid': s.id });
     sec.append(sentinel);
     main.append(sec);
     const tl = h('a', { href: '#', onclick: (e) => { e.preventDefault(); sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, s.heading);
     const top = Math.max(0, ...(s.gsiFocus || []).map((g) => g.level || 1));
-    const li = h('li', { class: top >= 2 ? 'focus-' + top : null, title: top >= 2 ? HUB.focus.label + ': ' + GSI_LEVEL[top] : null }, tl, top >= 2 && h('span', { class: 'sr-only' }, ', ' + HUB.focus.label));
+    const li = h('li', { class: [top >= 2 && 'focus-' + top, s.priority && 'pr' + s.priority].filter(Boolean).join(' ') || null, title: top >= 2 ? HUB.focus.label + ': ' + GSI_LEVEL[top] : null }, tl, s.priority > 1 && h('i', { class: 'pd p' + s.priority, 'aria-hidden': 'true' }), top >= 2 && h('span', { class: 'sr-only' }, ', ' + HUB.focus.label));
     toc.append(li);
     readEls.set(s.id, { toc: li, btn, sec, sentinel });
   });

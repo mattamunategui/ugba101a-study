@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=9facf516b2';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=9facf516b2';
-import * as store from '../lib/store.js?v=9facf516b2';
-import { setChatContext } from '../lib/chat.js?v=9facf516b2';
+import { HUB } from '../hub.js?v=c88bc5a465';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=c88bc5a465';
+import * as store from '../lib/store.js?v=c88bc5a465';
+import { setChatContext } from '../lib/chat.js?v=c88bc5a465';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -55,8 +55,17 @@ export function mountEngine(root, opts) {
   const cat = !timed && !!opts.moduleId && Array.isArray(opts.groups) && opts.groups.length > 0;
   const gIds = cat ? opts.groups.map((g) => g.id) : [];
   const gi = (it) => { const i = gIds.indexOf(it.q.group); return i < 0 ? gIds.length : i; };
+  // Exam priority (module practice): 3 = will be tested, 2 = in the slides, 1 = not in the slides (hidden unless asked).
+  const prio = (it) => it.q.priority || 2;
+  const usePrio = !timed && !!opts.moduleId && items.some((it) => it.q.priority);
+  const nLow = usePrio ? items.filter((it) => prio(it) === 1).length : 0;
+  if (cat && usePrio) { // least important categories go last, otherwise keep the module's order
+    const score = (g) => { const qs = items.filter((it) => it.q.group === g && prio(it) > 1); return qs.length ? qs.reduce((n, it) => n + prio(it), 0) / qs.length : 0; };
+    const sc = new Map(gIds.map((g) => [g, score(g)]));
+    gIds.sort((a, b) => sc.get(b) - sc.get(a) || opts.groups.findIndex((x) => x.id === a) - opts.groups.findIndex((x) => x.id === b));
+  }
   const isSkip = () => false; // ponytail: category skipping UI removed; drop the isSkip plumbing if it never comes back
-  const S = { filter: 'all', order: opts.defaultOrder === 'cat' && !cat ? 'gsi' : opts.defaultOrder || 'orig', shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
+  const S = { showLow: false, filter: 'all', order: opts.defaultOrder === 'cat' && !cat ? 'gsi' : opts.defaultOrder || 'orig', shuffle: false, list: [], idx: 0, phase: 'run', confirming: false };
   const sess = new Map();
   const redone = new Set();
   const st = (q) => {
@@ -76,6 +85,7 @@ export function mountEngine(root, opts) {
   function rebuild() {
     let l = items.filter((it) => {
       const a = store.getQ(it.q.id);
+      if (usePrio && !S.showLow && prio(it) === 1) return false;
       if (S.filter === 'unanswered') return !a;
       if (S.filter === 'missed') return a && !a.ok;
       if (S.filter === 'emphasis') return !!it.q.emphasis;
@@ -251,12 +261,21 @@ export function mountEngine(root, opts) {
         g.links?.length > 0 && h('ul', { class: 'walk-links' }, g.links.map((l) => h('li', null, link(l))))));
   }
 
+  function prioNote() {
+    if (!usePrio) return null;
+    return h('div', { class: 'prio-note' },
+      h('span', null, h('i', { class: 'pd p3' }), 'Will be tested'), h('span', null, h('i', { class: 'pd p2' }), 'In the slides'),
+      nLow > 0 && h('button', { class: 'linkish', type: 'button', onclick: () => { S.showLow = !S.showLow; const id = cur()?.q.id; rebuild(); const j = S.list.findIndex((it) => it.q.id === id); if (j >= 0) S.idx = j; draw(); } },
+        S.showLow ? 'Hide the questions not in the slides' : `Show ${nLow} question${nLow > 1 ? 's' : ''} not in the slides`));
+  }
+
   function navigator() {
     const grouped = cat && S.order === 'cat' && !S.shuffle;
     return h('nav', { class: 'qnav', 'aria-label': 'Question navigator' }, S.list.map((it, i) => {
       const s = st(it.q);
       let c = 'qn';
       if (isSkip(it)) c += ' skipped';
+      if (usePrio) c += ' p' + prio(it);
       if (i === S.idx) c += ' current';
       if (s.wrong && !s.done) c += ' bad';
       else if (showFeedback(s)) { const o = okOf(s); c += o === null ? ' answered' : o ? ' ok' : ' bad'; }
@@ -425,7 +444,7 @@ export function mountEngine(root, opts) {
     const answeredN = S.list.filter((i) => fin(st(i.q)) || (timed && S.phase === 'run' && hasResp(i.q, st(i.q).resp))).length;
     kids.push(h('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': S.list.length, 'aria-valuenow': answeredN, 'aria-label': 'Progress' },
       h('div', { class: 'progress-fill', style: `width:${(100 * answeredN) / S.list.length}%` })));
-    kids.push(h('div', { class: 'qlayout' }, h('div', { class: 'qside' }, navigator()), card(cur())));
+    kids.push(h('div', { class: 'qlayout' }, h('div', { class: 'qside' }, navigator(), prioNote()), card(cur())));
     fill(root, ...kids);
     setChatContext({ kind: 'question', q: cur().q, module: opts.moduleId ? opts.mods?.get(opts.moduleId) : undefined, state: st(cur().q), hideAnswer: timed && S.phase === 'run', label: `Q${S.idx + 1}` + (catTitle(cur().q.group) ? ' · ' + catTitle(cur().q.group) : '') });
     const f = root.querySelector('.timed-bar'); if (!f && timerEl) timerEl = null;
@@ -452,7 +471,7 @@ export function render(ctx) {
   const hasGroups = Array.isArray(mod.groups) && mod.groups.length > 0;
   const order = ctx.course.parts.find((p) => p.modules.includes(id))?.modules || [];
   const pos = order.indexOf(id), nx = pos >= 0 ? ctx.mods.get(order[pos + 1]) : null;
-  const nextLinks = nx ? [{ href: '#/m/' + nx.id, label: 'Read it', primary: true }, (nx.questions || []).length > 0 && { href: '#/practice/' + nx.id, label: `Practice its ${nx.questions.length} questions` }].filter(Boolean) : [];
+  const nextLinks = nx ? [{ href: '#/m/' + nx.id, label: 'Read it', primary: true }, (nx.questions || []).length > 0 && { href: '#/practice/' + nx.id, label: `Practice its ${nx.questions.filter((q) => q.priority !== 1).length} questions` }].filter(Boolean) : [];
   ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/m/' + id, backLabel: pos >= 0 ? `Module ${pos + 1}` : 'Module', doneLabel: 'Back to reading', nextLinks, nextTitle: nx && `Next up, Module ${pos + 2}: ${nx.title}`, defaultOrder: hasGroups ? 'cat' : 'gsi', groups: mod.groups, moduleId: id, mods: ctx.mods }));
 }
 
@@ -464,7 +483,7 @@ function practiceIndex(ctx) {
   ctx.root.append(h('div', { class: 'wrap' }, h('h1', null, 'Practice questions'),
     mods.length ? h('div', { class: 'cards' }, mods.map(([m, n]) => h('a', { class: 'mod-card', href: '#/practice/' + m.id },
       h('div', { class: 'lec' }, 'Module ' + n), h('h3', null, m.title),
-      practiceStats(store.moduleScore(m)))))
+      practiceStats(store.moduleScore({ questions: m.questions.filter((q) => q.priority !== 1) })), prioCounts(m))))
       : h('p', { class: 'muted' }, 'No practice questions yet.')));
 }
 
@@ -476,4 +495,10 @@ function practiceStats(sc) {
   return h('div', { class: 'mc-stats' }, h('span', null, label),
     h('div', { class: 'progress pq-bar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': sc.total, 'aria-valuenow': sc.attempted, 'aria-label': 'Questions done' },
       h('div', { class: 'progress-fill pq-ok', style: pct(sc.correct) }), h('div', { class: 'progress-fill pq-bad', style: pct(sc.attempted - sc.correct) })));
+}
+
+function prioCounts(m) {
+  const n = (p) => m.questions.filter((q) => q.priority === p).length;
+  if (!n(3) && !n(2)) return null;
+  return h('div', { class: 'prio-count' }, h('span', null, h('i', { class: 'pd p3' }), `${n(3)} will be tested`), h('span', null, h('i', { class: 'pd p2' }), `${n(2)} in the slides`), n(1) > 0 && h('span', null, `${n(1)} not in slides (hidden)`));
 }

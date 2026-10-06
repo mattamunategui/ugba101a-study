@@ -30,6 +30,12 @@
 /* question navigator */
 .qnav { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 16px; }
 .qn { min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius); border: 1px solid var(--border); border-bottom-width: 2px; background: transparent; color: var(--muted); font: 500 .85rem var(--font); font-variant-numeric: tabular-nums; cursor: pointer; }
+.qn.p3, .qn.p2 { position: relative; }
+.qn.p3::after, .qn.p2::after { content: ""; position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; }
+.qn.p3::after, .pd.p3 { background: var(--bad); } .qn.p2::after, .pd.p2 { background: var(--warn); }
+.pd { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 5px 0 0; vertical-align: 1px; }
+.prio-note, .prio-count { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: .8rem; color: var(--muted); margin: -8px 0 12px; }
+.prio-count { margin: 6px 0 0; gap: 2px 10px; }
 .qn:hover { border-color: var(--border-strong); }
 .qn.current { border-color: var(--accent); color: var(--text); }
 .qn.answered { border-bottom-color: var(--accent); }
