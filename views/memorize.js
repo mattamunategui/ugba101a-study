@@ -1,6 +1,6 @@
-import { HUB } from '../hub.js?v=106daaa0cf';
-import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=106daaa0cf';
-import * as store from '../lib/store.js?v=106daaa0cf';
+import { HUB } from '../hub.js?v=1981078eb3';
+import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=1981078eb3';
+import * as store from '../lib/store.js?v=1981078eb3';
 
 const FIELD_NAMES = { three: '3-letter code', one: '1-letter code', cls: 'class', class: 'class', group: 'category', doubleBonds: 'number of double bonds', notation: 'C:DB notation', pKaR: 'side-chain pKa', figure: 'structure' };
 const ID_KEYS = ['name', 'title', 'topic', 'term', 'item'];
@@ -92,7 +92,8 @@ function tagFilter(tagsAll, onChange) {
 
 
 function list(ctx, root) {
-  const decks = ctx.course.parts.flatMap((p) => p.decks.map((d) => ctx.decks.get(d))).filter(Boolean);
+  const cur = store.currentPart(ctx.course); // the part being studied comes first
+  const decks = [cur, ...ctx.course.parts.filter((p) => p !== cur)].filter(Boolean).flatMap((p) => p.decks.map((d) => ctx.decks.get(d))).filter(Boolean);
   const holder = h('div', { class: 'cgrid' });
   const draw = () => {
     const tags = new Set(store.get('memtags', []) || []);

@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=106daaa0cf';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=106daaa0cf';
-import * as store from '../lib/store.js?v=106daaa0cf';
-import { setChatContext } from '../lib/chat.js?v=106daaa0cf';
+import { HUB } from '../hub.js?v=1981078eb3';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=1981078eb3';
+import * as store from '../lib/store.js?v=1981078eb3';
+import { setChatContext } from '../lib/chat.js?v=1981078eb3';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -477,8 +477,7 @@ export function render(ctx) {
 
 function practiceIndex(ctx) {
   document.title = 'Practice · ' + HUB.short;
-  const parts = ctx.course.parts;
-  const part = parts.find((p) => p.id === store.get('part', null)) || parts[0];
+  const part = store.currentPart(ctx.course);
   const mods = (part?.modules || []).map((id, i) => [ctx.mods.get(id), i + 1]).filter(([m]) => m && (m.questions || []).length);
   ctx.root.append(h('div', { class: 'wrap' }, h('h1', null, 'Practice questions'),
     mods.length ? h('div', { class: 'cards' }, mods.map(([m, n]) => h('a', { class: 'mod-card', href: '#/practice/' + m.id },

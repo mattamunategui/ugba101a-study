@@ -1,6 +1,6 @@
-import { h, mdInline, fill, put } from '../lib/render.js?v=106daaa0cf';
-import * as store from '../lib/store.js?v=106daaa0cf';
-import { lectureLabel, scoreText } from './module.js?v=106daaa0cf';
+import { h, mdInline, fill, put } from '../lib/render.js?v=1981078eb3';
+import * as store from '../lib/store.js?v=1981078eb3';
+import { lectureLabel, scoreText } from './module.js?v=1981078eb3';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -8,8 +8,7 @@ export function render(ctx) {
   const { root, course } = ctx;
   document.title = course.title;
   const parts = course.parts;
-  let partId = store.get('part', null);
-  if (!parts.find((p) => p.id === partId)) partId = parts[0]?.id;
+  let partId = store.currentPart(course)?.id;
   const wrap = h('div', { class: 'wrap home' });
   put(root, wrap);
   let timer = null;
