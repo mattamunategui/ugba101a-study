@@ -30,9 +30,6 @@
 /* question navigator */
 .qnav { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 16px; }
 .qn { min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius); border: 1px solid var(--border); border-bottom-width: 2px; background: transparent; color: var(--muted); font: 500 .85rem var(--font); font-variant-numeric: tabular-nums; cursor: pointer; }
-.qn.p3 { position: relative; }
-.qn.p3::after { content: "*"; position: absolute; top: 0; right: 3px; font-size: .75rem; line-height: 1; color: var(--text); }
-.pd { font-style: normal; } .pd.p3::before { content: "*"; margin-right: 4px; color: var(--text); } .pd.p2 { display: none; }
 .prio-note, .prio-count { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: .8rem; color: var(--muted); margin: 4px 0 16px; }
 .prio-count { margin: 6px 0 0; gap: 2px 10px; }
 .qn:hover { border-color: var(--border-strong); }

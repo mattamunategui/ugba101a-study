@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=1981078eb3';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=1981078eb3';
-import * as store from '../lib/store.js?v=1981078eb3';
-import { setChatContext } from '../lib/chat.js?v=1981078eb3';
+import { HUB } from '../hub.js?v=0fa5480cea';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=0fa5480cea';
+import * as store from '../lib/store.js?v=0fa5480cea';
+import { setChatContext } from '../lib/chat.js?v=0fa5480cea';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -262,10 +262,9 @@ export function mountEngine(root, opts) {
   }
 
   function prioNote() {
-    if (!usePrio) return null;
+    if (!usePrio || nLow === 0) return null;
     return h('div', { class: 'prio-note' },
-      h('span', null, h('i', { class: 'pd p3' }), 'Will be tested'),
-      nLow > 0 && h('button', { class: 'linkish', type: 'button', onclick: () => { S.showLow = !S.showLow; const id = cur()?.q.id; rebuild(); const j = S.list.findIndex((it) => it.q.id === id); if (j >= 0) S.idx = j; draw(); } },
+      h('button', { class: 'linkish', type: 'button', onclick: () => { S.showLow = !S.showLow; const id = cur()?.q.id; rebuild(); const j = S.list.findIndex((it) => it.q.id === id); if (j >= 0) S.idx = j; draw(); } },
         S.showLow ? 'Hide the questions not in the slides' : `Show ${nLow} question${nLow > 1 ? 's' : ''} not in the slides`));
   }
 
@@ -275,7 +274,6 @@ export function mountEngine(root, opts) {
       const s = st(it.q);
       let c = 'qn';
       if (isSkip(it)) c += ' skipped';
-      if (usePrio) c += ' p' + prio(it);
       if (i === S.idx) c += ' current';
       if (s.wrong && !s.done) c += ' bad';
       else if (showFeedback(s)) { const o = okOf(s); c += o === null ? ' answered' : o ? ' ok' : ' bad'; }
@@ -499,5 +497,5 @@ function practiceStats(sc) {
 function prioCounts(m) {
   const n = (p) => m.questions.filter((q) => q.priority === p).length;
   if (!n(3) && !n(2)) return null;
-  return h('div', { class: 'prio-count' }, h('span', null, h('i', { class: 'pd p3' }), `${n(3)} will be tested`), n(1) > 0 && h('span', null, `${n(1)} not in slides (hidden)`));
+  return n(1) > 0 ? h('div', { class: 'prio-count' }, h('span', null, `${n(1)} not in slides (hidden)`)) : null;
 }

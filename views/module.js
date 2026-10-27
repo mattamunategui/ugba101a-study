@@ -1,9 +1,9 @@
-import { HUB } from '../hub.js?v=1981078eb3';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=1981078eb3';
-import * as store from '../lib/store.js?v=1981078eb3';
-import { setChatContext } from '../lib/chat.js?v=1981078eb3';
+import { HUB } from '../hub.js?v=0fa5480cea';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=0fa5480cea';
+import * as store from '../lib/store.js?v=0fa5480cea';
+import { setChatContext } from '../lib/chat.js?v=0fa5480cea';
 
-const PRIO = { 3: '* Will be tested', 1: 'Not in the slides' };
+const PRIO = { 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const levelPill = (l) => h('span', { class: 'gsi-lv lv' + l, title: HUB.focus.short + ' level ' + l + ' of 3' }, GSI_LEVEL[l] || 'Covered');
 
@@ -82,9 +82,9 @@ export function render(ctx) {
     const sentinel = h('div', { class: 'sentinel', 'aria-hidden': 'true', 'data-sid': s.id });
     sec.append(sentinel);
     main.append(sec);
-    const tl = h('a', { href: '#', onclick: (e) => { e.preventDefault(); sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, s.heading);
-    const top = Math.max(0, ...(s.gsiFocus || []).map((g) => g.level || 1));
-    const li = h('li', { class: [top >= 2 && 'focus-' + top, s.priority && 'pr' + s.priority].filter(Boolean).join(' ') || null, title: top >= 2 ? HUB.focus.label + ': ' + GSI_LEVEL[top] : null }, tl, s.priority > 1 && h('i', { class: 'pd p' + s.priority, 'aria-hidden': 'true' }), top >= 2 && h('span', { class: 'sr-only' }, ', ' + HUB.focus.label));
+    const tl = h('a', { href: '#/m/' + id + '?s=' + s.id, onclick: (e) => { e.preventDefault(); sec.scrollIntoView({ behavior: smooth(), block: 'start' }); } },
+      h('span', { class: 'toc-n', 'aria-hidden': 'true' }, String(i + 1)), h('span', { class: 'toc-t' }, s.heading));
+    const li = h('li', null, tl);
     toc.append(li);
     readEls.set(s.id, { toc: li, btn, sec, sentinel });
   });
@@ -98,7 +98,8 @@ export function render(ctx) {
     prev ? h('a', { class: 'pn-link', href: '#/m/' + prev.id }, 'Previous: ' + prev.title) : h('span'),
     next ? h('a', { class: 'pn-link next', href: '#/m/' + next.id }, 'Next: ' + next.title) : h('span')));
 
-  const side = h('aside', { class: 'mod-side' }, h('div', { class: 'toc-box' }, h('div', { class: 'toc-title' }, 'On this page'), toc,
+  const tocScroll = h('nav', { class: 'toc-scroll', 'aria-label': 'Sections' }, toc);
+  const side = h('aside', { class: 'mod-side' }, h('div', { class: 'toc-box' }, h('div', { class: 'toc-title' }, 'On this page'), tocScroll,
     q > 0 && h('a', { class: 'btn primary small', href: '#/practice/' + id }, 'Practice')));
 
   main.prepend(head);
@@ -130,15 +131,27 @@ export function render(ctx) {
     const t = setTimeout(() => { let i = 0; readEls.forEach((e) => { if (i++ >= targetIdx) io.observe(e.sentinel); }); }, 600);
     ctx.onCleanup(() => { clearTimeout(t); io.disconnect(); });
   }
-  // highlight current section in the TOC
-  if ('IntersectionObserver' in window && sections.length) {
-    const cur = new IntersectionObserver((entries) => {
-      for (const en of entries) if (en.isIntersecting) { setChatContext({ kind: 'module', module: mod, sectionId: en.target.dataset.sid }); readEls.forEach((e) => e.toc.classList.remove('current')); readEls.get(en.target.dataset.sid)?.toc.classList.add('current'); }
-    }, { rootMargin: '-20% 0px -70% 0px' });
-    sections.forEach((s) => { readEls.get(s.id).sec.dataset.sid = s.id; cur.observe(readEls.get(s.id).sec); });
-    ctx.onCleanup(() => cur.disconnect());
+  // highlight current section in the TOC and keep it in view inside the (scrollable) sidebar
+  function setCurrent(sid) {
+    readEls.forEach((e) => { e.toc.classList.remove('current'); e.toc.firstChild.removeAttribute('aria-current'); });
+    const li = readEls.get(sid)?.toc; if (!li) return;
+    li.classList.add('current'); li.firstChild.setAttribute('aria-current', 'location');
+    const box = tocScroll, top = li.offsetTop - box.offsetTop, bottom = top + li.offsetHeight;
+    if (top < box.scrollTop + 8 || bottom > box.scrollTop + box.clientHeight - 8) box.scrollTo({ top: Math.max(0, top - box.clientHeight / 3), behavior: smooth() });
+  }
+  if (sections.length) {
+    // current = last section whose top has passed 30% of the viewport (scroll listener, rAF-throttled)
+    let raf = 0, last = null;
+    const onScroll = () => { if (raf) return; raf = requestAnimationFrame(() => {
+      raf = 0; const line = innerHeight * 0.3; let sid = sections[0].id;
+      for (const s of sections) { if (readEls.get(s.id).sec.getBoundingClientRect().top <= line) sid = s.id; else break; }
+      if (sid !== last) { last = sid; setCurrent(sid); setChatContext({ kind: 'module', module: mod, sectionId: sid }); }
+    }); };
+    addEventListener('scroll', onScroll, { passive: true }); onScroll();
+    ctx.onCleanup(() => { removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); });
   }
 }
+function smooth() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'; }
 export function lectureLabel(l) {
   if (!l || !l.length) return 'Module';
   return l.length === 1 ? `Lecture ${l[0]}` : `Lectures ${Math.min(...l)}–${Math.max(...l)}`;
