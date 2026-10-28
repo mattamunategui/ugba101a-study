@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=0fa5480cea';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=0fa5480cea';
-import * as store from '../lib/store.js?v=0fa5480cea';
-import { setChatContext } from '../lib/chat.js?v=0fa5480cea';
+import { HUB } from '../hub.js?v=c64f9c1bdb';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=c64f9c1bdb';
+import * as store from '../lib/store.js?v=c64f9c1bdb';
+import { setChatContext } from '../lib/chat.js?v=c64f9c1bdb';
 
 const PRIO = { 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };

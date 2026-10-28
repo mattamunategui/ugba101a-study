@@ -1,6 +1,6 @@
-import { HUB } from '../hub.js?v=0fa5480cea';
-import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=0fa5480cea';
-import * as store from '../lib/store.js?v=0fa5480cea';
+import { HUB } from '../hub.js?v=c64f9c1bdb';
+import { h, md, mdInline, figureEl, plain, fill, put } from '../lib/render.js?v=c64f9c1bdb';
+import * as store from '../lib/store.js?v=c64f9c1bdb';
 
 const FIELD_NAMES = { three: '3-letter code', one: '1-letter code', cls: 'class', class: 'class', group: 'category', doubleBonds: 'number of double bonds', notation: 'C:DB notation', pKaR: 'side-chain pKa', figure: 'structure' };
 const ID_KEYS = ['name', 'title', 'topic', 'term', 'item'];

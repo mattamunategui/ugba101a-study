@@ -5,9 +5,9 @@ export const HUB = {
  "slug": "ugba101a",
  "mode": "shared-web",
  "focus": {
-  "label": "Mock-exam focus",
-  "short": "Mock",
-  "blurb": "What the prof's Fall 2026 mock exam tests, ranked by how likely it is on Midterm 1 (the real exam is the same format, just longer). Start at the top."
+  "label": "Exam focus",
+  "short": "Exam",
+  "blurb": "What the course's own practice signals stress (the prof's mock exam for Midterm 1, the GSI discussion sets for Midterm 2), ranked by how likely it is on the exam. Start at the top."
  },
  "askName": false
 };
