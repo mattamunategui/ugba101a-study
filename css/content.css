@@ -51,6 +51,9 @@ a.mod-card:hover h3, a.tile:hover .tile-title { color: var(--accent); }
 .toc-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; margin-bottom: 14px; }
 .toc { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border); }
 .toc a { display: grid; grid-template-columns: 1.5em minmax(0, 1fr); column-gap: 4px; padding: 5px 10px 5px 12px; margin-left: -1px; border-left: 2px solid transparent; font-size: .875rem; line-height: 1.4; color: var(--muted); text-decoration: none; }
+.lec-group { margin: 2.2em 0 .9em; font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.toc-group { padding: 10px 10px 3px 12px; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.toc-group:first-child { padding-top: 2px; }
 .toc-n { font-variant-numeric: tabular-nums; }
 .toc-t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .toc a:hover { color: var(--text); }

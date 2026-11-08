@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=c0dd782dfb';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=c0dd782dfb';
-import * as store from '../lib/store.js?v=c0dd782dfb';
-import { setChatContext } from '../lib/chat.js?v=c0dd782dfb';
+import { HUB } from '../hub.js?v=53295a43cf';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=53295a43cf';
+import * as store from '../lib/store.js?v=53295a43cf';
+import { setChatContext } from '../lib/chat.js?v=53295a43cf';
 
 const PRIO = { 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
@@ -19,7 +19,7 @@ export function render(ctx) {
   const next = pos >= 0 && pos < order.length - 1 ? ctx.mods.get(order[pos + 1]) : null;
   document.title = mod.title + ' · ' + HUB.short;
 
-  const sections = mod.sections || [];
+  const sections = byLecture(mod);
   const target = new URLSearchParams((location.hash.split('?')[1] || '')).get('s');
   const targetIdx = sections.findIndex((x) => x.id === target);
   const readEls = new Map(); // sectionId -> {tocLink, btn, section}
@@ -54,7 +54,10 @@ export function render(ctx) {
   // sections
   const main = h('div', { class: 'mod-main' });
   const toc = h('ol', { class: 'toc' });
+  let lastG;
   sections.forEach((s, i) => {
+    const g = groupLabel(mod, s);
+    if (g && g !== lastG) { lastG = g; main.append(h('h2', { class: 'lec-group' }, g)); toc.append(h('li', { class: 'toc-group' }, g)); }
     const sid = 'sec-' + s.id;
     const btn = h('button', { class: 'btn small read-toggle', type: 'button', 'aria-pressed': 'false', onclick: () => { store.setRead(id, s.id, !store.isRead(id, s.id)); paint(s.id); } }, 'Mark read');
     const sec = h('section', { class: 'sec', id: sid, 'aria-labelledby': sid + '-h' },
@@ -150,6 +153,18 @@ export function render(ctx) {
     addEventListener('scroll', onScroll, { passive: true }); onScroll();
     ctx.onCleanup(() => { removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); });
   }
+}
+// sections grouped by the lecture (handout "Class N") that taught them; untagged sections go last
+function byLecture(mod) {
+  const s = mod.sections || [], L = mod.lectures || [];
+  if (!L.length) return s;
+  const rank = (x) => { const i = L.findIndex((l) => l.n === x.lecture); return i < 0 ? L.length : i; };
+  return [...s].sort((a, b) => rank(a) - rank(b));
+}
+function groupLabel(mod, s) {
+  if (!(mod.lectures || []).length) return null;
+  const l = mod.lectures.find((x) => x.n === s.lecture);
+  return l ? `Lecture ${l.n} · ${l.date}: ${l.title}` : 'Across lectures: exam synthesis';
 }
 function smooth() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'; }
 export function lectureLabel(l) {
