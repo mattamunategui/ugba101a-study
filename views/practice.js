@@ -1,8 +1,8 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=71de2a682e';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=71de2a682e';
-import * as store from '../lib/store.js?v=71de2a682e';
-import { setChatContext } from '../lib/chat.js?v=71de2a682e';
+import { HUB } from '../hub.js?v=b05dca11a0';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=b05dca11a0';
+import * as store from '../lib/store.js?v=b05dca11a0';
+import { setChatContext } from '../lib/chat.js?v=b05dca11a0';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -55,7 +55,7 @@ export function mountEngine(root, opts) {
   const cat = !timed && !!opts.moduleId && Array.isArray(opts.groups) && opts.groups.length > 0;
   const gIds = cat ? opts.groups.map((g) => g.id) : [];
   const gi = (it) => { const i = gIds.indexOf(it.q.group); return i < 0 ? gIds.length : i; };
-  // Exam priority (module practice): 3 = will be tested, 2 = in the slides, 1 = not in the slides (hidden unless asked).
+  // Exam priority (module practice): 3 = will be tested, 2 = in the slides, 1 = extra (hidden unless asked).
   const prio = (it) => it.q.priority || 2;
   const usePrio = !timed && !!opts.moduleId && items.some((it) => it.q.priority);
   const nLow = usePrio ? items.filter((it) => prio(it) === 1).length : 0;
@@ -265,7 +265,7 @@ export function mountEngine(root, opts) {
     if (!usePrio || nLow === 0) return null;
     return h('div', { class: 'prio-note' },
       h('button', { class: 'linkish', type: 'button', onclick: () => { S.showLow = !S.showLow; const id = cur()?.q.id; rebuild(); const j = S.list.findIndex((it) => it.q.id === id); if (j >= 0) S.idx = j; draw(); } },
-        S.showLow ? 'Hide the questions not in the slides' : `Show ${nLow} question${nLow > 1 ? 's' : ''} not in the slides`));
+        S.showLow ? 'Hide the extra questions' : `Show ${nLow} extra question${nLow > 1 ? 's' : ''}`));
   }
 
   function navigator() {
@@ -496,6 +496,5 @@ function practiceStats(sc) {
 
 function prioCounts(m) {
   const n = (p) => m.questions.filter((q) => q.priority === p).length;
-  if (!n(3) && !n(2)) return null;
-  return n(1) > 0 ? h('div', { class: 'prio-count' }, h('span', null, `${n(1)} not in slides (hidden)`)) : null;
+  return n(1) > 0 ? h('div', { class: 'prio-count' }, h('span', null, `+${n(1)} extra (hidden)`)) : null;
 }

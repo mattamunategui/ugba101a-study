@@ -1,6 +1,6 @@
-import { h, mdInline, fill, put } from '../lib/render.js?v=71de2a682e';
-import * as store from '../lib/store.js?v=71de2a682e';
-import { lectureLabel, scoreText } from './module.js?v=71de2a682e';
+import { h, mdInline, fill, put } from '../lib/render.js?v=b05dca11a0';
+import * as store from '../lib/store.js?v=b05dca11a0';
+import { lectureLabel, scoreText } from './module.js?v=b05dca11a0';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -49,7 +49,7 @@ export function render(ctx) {
     const decks = part.decks.map((d) => ctx.decks.get(d)).filter(Boolean);
     const exams = part.exams.map((d) => ctx.exams.get(d)).filter(Boolean);
     const cardsN = decks.reduce((n, d) => n + d.cards.length, 0);
-    const nQ = part.modules.reduce((n, id) => n + (ctx.mods.get(id)?.questions || []).length, 0);
+    const nQ = part.modules.reduce((n, id) => n + (ctx.mods.get(id)?.questions || []).filter((q) => q.priority !== 1).length, 0);
     const link = (href, title, count, on = true) => on ? h('a', { href }, title, count && h('span', null, ' ' + count)) : h('span', { class: 'off' }, title, count && h('span', null, ' ' + count));
     kids.push(h('nav', { class: 'quick', 'aria-label': 'Study tools' },
       link('#/max', 'Efficiencymaxxing', null, (ctx.bundle.playbook || []).some((f) => f.part === part.id)),

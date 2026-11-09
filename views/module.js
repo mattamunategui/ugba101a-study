@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=71de2a682e';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=71de2a682e';
-import * as store from '../lib/store.js?v=71de2a682e';
-import { setChatContext } from '../lib/chat.js?v=71de2a682e';
+import { HUB } from '../hub.js?v=b05dca11a0';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=b05dca11a0';
+import * as store from '../lib/store.js?v=b05dca11a0';
+import { setChatContext } from '../lib/chat.js?v=b05dca11a0';
 
 const PRIO = { 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
@@ -38,7 +38,7 @@ export function render(ctx) {
   };
 
   const progText = h('span', null), progFill = h('div', { class: 'progress-fill' });
-  const q = (mod.questions || []).length;
+  const q = (mod.questions || []).filter((x) => x.priority !== 1).length; // extras stay hidden
 
   // header
   const head = h('header', { class: 'mod-head' },
