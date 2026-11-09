@@ -1,8 +1,9 @@
 // Practice engine shared by modules, exams, the playbook and memorize-quiz; also the Practice index (#/practice).
-import { HUB } from '../hub.js?v=331c204093';
-import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=331c204093';
-import * as store from '../lib/store.js?v=331c204093';
-import { setChatContext } from '../lib/chat.js?v=331c204093';
+import { HUB } from '../hub.js?v=92fa283f67';
+import { h, md, mdInline, figureEl, plain, fmtTime, fill, put } from '../lib/render.js?v=92fa283f67';
+import * as store from '../lib/store.js?v=92fa283f67';
+import { setChatContext } from '../lib/chat.js?v=92fa283f67';
+import { lectureLabel, modLabel } from './module.js?v=92fa283f67';
 
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
 export const DIFF = { 1: 'Recall', 2: 'Apply', 3: 'Exam-hard' };
@@ -467,10 +468,10 @@ export function render(ctx) {
   const root = h('div', { class: 'wrap engine' });
   ctx.root.append(root);
   const hasGroups = Array.isArray(mod.groups) && mod.groups.length > 0;
-  const prt = ctx.course.parts.find((p) => p.modules.includes(id)), order = prt?.modules || [], n0 = prt?.moduleStart || 1;
+  const prt = ctx.course.parts.find((p) => p.modules.includes(id)), order = prt?.modules || [];
   const pos = order.indexOf(id), nx = pos >= 0 ? ctx.mods.get(order[pos + 1]) : null;
   const nextLinks = nx ? [{ href: '#/m/' + nx.id, label: 'Read it', primary: true }, (nx.questions || []).length > 0 && { href: '#/practice/' + nx.id, label: `Practice its ${nx.questions.filter((q) => q.priority !== 1).length} questions` }].filter(Boolean) : [];
-  ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/m/' + id, backLabel: pos >= 0 ? `Module ${pos + n0}` : 'Module', doneLabel: 'Back to reading', nextLinks, nextTitle: nx && `Next up, Module ${pos + n0 + 1}: ${nx.title}`, defaultOrder: hasGroups ? 'cat' : 'gsi', groups: mod.groups, moduleId: id, mods: ctx.mods }));
+  ctx.onCleanup(mountEngine(root, { title: `Practice: ${mod.title}`, items, backHref: '#/m/' + id, backLabel: lectureLabel(mod.lecture), doneLabel: 'Back to reading', nextLinks, nextTitle: nx && `Next up, ${lectureLabel(nx.lecture)}: ${nx.title}`, defaultOrder: hasGroups ? 'cat' : 'gsi', groups: mod.groups, moduleId: id, mods: ctx.mods }));
 }
 
 function practiceIndex(ctx) {
@@ -479,7 +480,7 @@ function practiceIndex(ctx) {
   const mods = (part?.modules || []).map((id, i) => [ctx.mods.get(id), i + (part.moduleStart || 1)]).filter(([m]) => m && (m.questions || []).length);
   ctx.root.append(h('div', { class: 'wrap' }, h('h1', null, 'Practice questions'),
     mods.length ? h('div', { class: 'cards' }, mods.map(([m, n]) => h('a', { class: 'mod-card', href: '#/practice/' + m.id },
-      h('div', { class: 'lec' }, 'Module ' + n), h('h3', null, m.title),
+      h('div', { class: 'lec' }, modLabel(m)), h('h3', null, m.title),
       practiceStats(store.moduleScore({ questions: m.questions.filter((q) => q.priority !== 1) })), prioCounts(m))))
       : h('p', { class: 'muted' }, 'No practice questions yet.')));
 }

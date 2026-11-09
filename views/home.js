@@ -1,6 +1,6 @@
-import { h, mdInline, fill, put } from '../lib/render.js?v=331c204093';
-import * as store from '../lib/store.js?v=331c204093';
-import { lectureLabel, scoreText } from './module.js?v=331c204093';
+import { h, mdInline, fill, put } from '../lib/render.js?v=92fa283f67';
+import * as store from '../lib/store.js?v=92fa283f67';
+import { modLabel, scoreText } from './module.js?v=92fa283f67';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -62,7 +62,7 @@ export function render(ctx) {
       const m = ctx.mods.get(mid); if (!m) return null;
       const n = store.readCount(mid), tot = (m.sections || []).length, sc = store.moduleScore(m);
       return h('a', { class: 'mod-card', href: '#/m/' + mid },
-        h('div', { class: 'lec' }, lectureLabel(m.lecture)),
+        h('div', { class: 'lec' }, modLabel(m)),
         h('h3', null, m.title),
         h('p', { class: 'mod-sum', html: mdInline(m.summary || '') }),
         h('div', { class: 'mc-stats' },

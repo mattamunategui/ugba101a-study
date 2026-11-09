@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=331c204093';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=331c204093';
-import * as store from '../lib/store.js?v=331c204093';
-import { setChatContext } from '../lib/chat.js?v=331c204093';
+import { HUB } from '../hub.js?v=92fa283f67';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=92fa283f67';
+import * as store from '../lib/store.js?v=92fa283f67';
+import { setChatContext } from '../lib/chat.js?v=92fa283f67';
 
 const PRIO = { 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
@@ -43,7 +43,8 @@ export function render(ctx) {
   // header
   const head = h('header', { class: 'mod-head' },
     h('a', { class: 'back', href: '#/' }, 'All modules'),
-    h('div', { class: 'lec' }, lectureLabel(mod.lecture)),
+    h('div', { class: 'lec' }, modLabel(mod)),
+    mod.whole && h('p', { class: 'muted small' }, 'Whole module. Study it lecture by lecture: ', ...[...ctx.mods.values()].filter((m) => m.parent === mod.id).flatMap((m, i) => [i ? ' · ' : '', h('a', { href: '#/m/' + m.id }, lectureLabel(m.lecture))])),
     h('h1', null, mod.title),
     mod.summary && h('p', { class: 'lede', html: mdInline(mod.summary) }),
     h('div', { class: 'mini-progress' }, h('div', { class: 'progress' }, progFill), progText),
@@ -168,6 +169,7 @@ function groupLabel(mod, s) {
   return l ? `Lecture ${l.n} · ${l.date}: ${l.title}` : 'Across lectures: exam synthesis';
 }
 function smooth() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'; }
+export const modLabel = (m) => [lectureLabel(m.lecture), m.lectureDate, m.parentTitle].filter(Boolean).join(' · ');
 export function lectureLabel(l) {
   if (!l || !l.length) return 'Module';
   return l.length === 1 ? `Lecture ${l[0]}` : `Lectures ${Math.min(...l)}–${Math.max(...l)}`;

@@ -1,9 +1,9 @@
 // Efficiencymaxxing: per-module exam playbook (question types + fastest method), launches practice per play.
-import { HUB } from '../hub.js?v=331c204093';
-import { h, md, mdInline, figureEl, fill, put } from '../lib/render.js?v=331c204093';
-import * as store from '../lib/store.js?v=331c204093';
-import { mountEngine } from './practice.js?v=331c204093';
-import { focusTopics } from './focus.js?v=331c204093';
+import { HUB } from '../hub.js?v=92fa283f67';
+import { h, md, mdInline, figureEl, fill, put } from '../lib/render.js?v=92fa283f67';
+import * as store from '../lib/store.js?v=92fa283f67';
+import { mountEngine } from './practice.js?v=92fa283f67';
+import { focusTopics } from './focus.js?v=92fa283f67';
 
 const LIKE = { 3: 'Very likely', 2: 'Likely', 1: 'Possible' };
 const doneSet = () => new Set(store.get('maxdone', []) || []);
@@ -40,7 +40,7 @@ export function render(ctx) {
   }
 
   const mustknow = files.filter((f) => f.mustknow);
-  const mods = (part.modules || []).map((id) => ({ m: ctx.mods.get(id), plays: plays.filter((p) => p.module === id) })).filter((x) => x.m && x.plays.length);
+  const mods = [...new Set(files.map((f) => f.module).filter(Boolean))].map((id) => ({ m: ctx.mods.get(id), plays: plays.filter((p) => p.module === id) })).filter((x) => x.m && x.plays.length);
   const e = part.exam, when = e && fmtDate(e.start);
   const body = h('div');
   put(root, h('a', { class: 'back', href: '#/' }, 'Home'),
