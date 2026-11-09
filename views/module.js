@@ -1,7 +1,7 @@
-import { HUB } from '../hub.js?v=53295a43cf';
-import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=53295a43cf';
-import * as store from '../lib/store.js?v=53295a43cf';
-import { setChatContext } from '../lib/chat.js?v=53295a43cf';
+import { HUB } from '../hub.js?v=71de2a682e';
+import { h, md, mdInline, figureEl, resourceEl, fill, put } from '../lib/render.js?v=71de2a682e';
+import * as store from '../lib/store.js?v=71de2a682e';
+import { setChatContext } from '../lib/chat.js?v=71de2a682e';
 
 const PRIO = { 1: 'Not in the slides' };
 export const GSI_LEVEL = { 3: 'Exam question', 2: 'Emphasized', 1: 'Covered' };
@@ -159,7 +159,8 @@ function byLecture(mod) {
   const s = mod.sections || [], L = mod.lectures || [];
   if (!L.length) return s;
   const rank = (x) => { const i = L.findIndex((l) => l.n === x.lecture); return i < 0 ? L.length : i; };
-  return [...s].sort((a, b) => rank(a) - rank(b));
+  const num = (x) => parseInt(String(x.id).replace(/\D/g, ''), 10) || 0; // ids were appended in teaching order
+  return [...s].sort((a, b) => rank(a) - rank(b) || num(a) - num(b));
 }
 function groupLabel(mod, s) {
   if (!(mod.lectures || []).length) return null;
