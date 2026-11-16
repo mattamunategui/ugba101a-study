@@ -208,3 +208,9 @@ a.res-title:hover, a.res:hover .res-title { color: var(--accent); }
 .prio-tag { display: inline-block; margin-left: 10px; padding: 1px 8px; border-radius: 999px; font: 500 .72rem/1.6 var(--font); vertical-align: middle; letter-spacing: .01em; }
 .prio-tag.p1 { background: var(--surface-2); color: var(--muted); }
 .sec-skip > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padding: 6px 0; }
+
+/* On the exam (#/flags) */
+.flag-list { display: grid; gap: 16px; margin-top: 18px; }
+.flag { border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 var(--radius-lg) var(--radius-lg) 0; padding: 14px 16px; background: var(--surface, transparent); }
+.flag-said { font-size: 1.05rem; margin: 6px 0 10px; }
+.flag-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

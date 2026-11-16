@@ -1,18 +1,19 @@
-import { HUB } from './hub.js?v=52270f7631';
-import { unlock, WrongPasscode } from './lib/crypto.js?v=52270f7631';
-import * as store from './lib/store.js?v=52270f7631';
-import { h, applyTheme, md } from './lib/render.js?v=52270f7631';
-import { mountChat, unmountChat } from './lib/chat.js?v=52270f7631';
+import { HUB } from './hub.js?v=64113f447c';
+import { unlock, WrongPasscode } from './lib/crypto.js?v=64113f447c';
+import * as store from './lib/store.js?v=64113f447c';
+import { h, applyTheme, md } from './lib/render.js?v=64113f447c';
+import { mountChat, unmountChat } from './lib/chat.js?v=64113f447c';
 
 const VIEWS = {
-  '': () => import('./views/home.js?v=52270f7631'),
-  m: () => import('./views/module.js?v=52270f7631'),
-  focus: () => import('./views/focus.js?v=52270f7631'),
-  max: () => import('./views/playbook.js?v=52270f7631'),
-  practice: () => import('./views/practice.js?v=52270f7631'),
-  memorize: () => import('./views/memorize.js?v=52270f7631'),
-  exam: () => import('./views/exam.js?v=52270f7631'),
-  settings: () => import('./views/settings.js?v=52270f7631'),
+  '': () => import('./views/home.js?v=64113f447c'),
+  m: () => import('./views/module.js?v=64113f447c'),
+  focus: () => import('./views/focus.js?v=64113f447c'),
+  flags: () => import('./views/flags.js?v=64113f447c'),
+  max: () => import('./views/playbook.js?v=64113f447c'),
+  practice: () => import('./views/practice.js?v=64113f447c'),
+  memorize: () => import('./views/memorize.js?v=64113f447c'),
+  exam: () => import('./views/exam.js?v=64113f447c'),
+  settings: () => import('./views/settings.js?v=64113f447c'),
 };
 
 const app = document.getElementById('app');
@@ -171,13 +172,14 @@ function refreshNav() {
   // `short` is the label shown on phones so all six items fit without scrolling
   const link = (href, text, key, extra, short) => h('a', { href, class: (seg === key ? 'active' : '') + (key === '' ? ' nav-home' : ''), 'aria-current': seg === key ? 'page' : null, 'aria-label': text },
     h('span', { class: 'nl-full' }, text), h('span', { class: 'nl-short', 'aria-hidden': 'true' }, short || text), extra);
-  navEl.replaceChildren(
+  navEl.replaceChildren(...[
     link('#/', 'Home', ''),
+    (store.currentPart(bundle.course)?.examFlags || []).length > 0 && link('#/flags', 'On the exam', 'flags', null, 'On exam'),
     link('#/max', 'Efficiencymaxxing', 'max', null, 'Maxx'),
     link('#/practice', 'Practice', 'practice'),
     link('#/memorize', 'Memorize', 'memorize', null, 'Cards'),
     link('#/exam', 'Exams', 'exam'),
-    link('#/settings', 'Settings', 'settings', null, 'Settings'));
+    link('#/settings', 'Settings', 'settings', null, '⚙︎')].filter(Boolean));
 }
 
 async function route() {
