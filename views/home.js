@@ -1,6 +1,6 @@
-import { h, mdInline, fill, put } from '../lib/render.js?v=14e2faeac0';
-import * as store from '../lib/store.js?v=14e2faeac0';
-import { modLabel, scoreText } from './module.js?v=14e2faeac0';
+import { h, mdInline, fill, put } from '../lib/render.js?v=52270f7631';
+import * as store from '../lib/store.js?v=52270f7631';
+import { modLabel, scoreText } from './module.js?v=52270f7631';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
