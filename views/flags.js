@@ -1,10 +1,10 @@
 // "On the exam": what the prof said will be on the exam (course.json → parts[].examFlags), newest first.
 // #/flags · #/flags/<id>/practice · #/flags/<id>/cards
-import { HUB } from '../hub.js?v=64113f447c';
-import { h, md, put } from '../lib/render.js?v=64113f447c';
-import * as store from '../lib/store.js?v=64113f447c';
-import { mountEngine } from './practice.js?v=64113f447c';
-import { flash } from './memorize.js?v=64113f447c';
+import { HUB } from '../hub.js?v=22ee600b0f';
+import { h, md, put } from '../lib/render.js?v=22ee600b0f';
+import * as store from '../lib/store.js?v=22ee600b0f';
+import { mountEngine } from './practice.js?v=22ee600b0f';
+import { flash } from './memorize.js?v=22ee600b0f';
 
 export function render(ctx) {
   const part = store.currentPart(ctx.course);
